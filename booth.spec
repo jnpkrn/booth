@@ -40,7 +40,12 @@ BuildRoot:      %{_tmppath}/%{name}-%{version}-build
 BuildRequires:  asciidoc
 BuildRequires:  autoconf
 BuildRequires:  automake
+BuildRequires:  pkgconfig
+%if 0%{?suse_version}
 BuildRequires:  glib2-devel
+%else
+BuildRequires:  pkgconfig(glib-2.0)
+%fi
 BuildRequires:  libgcrypt-devel
 %if 0%{?fedora} || 0%{?centos} || 0%{?rhel}
 BuildRequires:  cluster-glue-libs-devel
@@ -50,7 +55,6 @@ BuildRequires:  libglue-devel
 BuildRequires:  libpacemaker-devel
 %endif
 BuildRequires:  libxml2-devel
-BuildRequires:  pkgconfig
 %if 0%{?fedora} || 0%{?centos} || 0%{?rhel}
 Requires:       pacemaker >= 1.1.8
 Requires:       cluster-glue-libs >= 1.0.6
