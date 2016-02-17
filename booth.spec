@@ -75,10 +75,6 @@ Pacemaker.
 
 make
 
-#except check
-#%check
-#make check
-
 %install
 make DESTDIR=$RPM_BUILD_ROOT install docdir=%{booth_docdir}
 
