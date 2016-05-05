@@ -1,0 +1,13 @@
+sudo: false
+language: c
+compiler: gcc
+addons:
+        apt:
+                packages:
+                        - libqb-dev
+script: ./autogen.sh
+        && ./configure
+        && VERBOSE=1 make check
+
+notifications:
+        #irc: "irc.freenode.net#clusterlabs-dev"
