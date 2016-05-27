@@ -418,7 +418,7 @@ show_pref() {
 	run_site $1 crm configure show $PREFNAME > /dev/null
 }
 repair_external_prog() {
-	run_site $1 crm configure delete __pref_booth_live_test
+	run_site $1 crm configure delete $PREFNAME
 }
 get_tkt() {
 	grep "^ticket=" | head -1 | sed 's/ticket=//;s/"//g'
