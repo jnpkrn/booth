@@ -372,8 +372,8 @@ static int setup_config(int type)
 	/* Set "local" pointer, ignoring errors. */
 	if (cl.type == DAEMON && cl.site[0]) {
 		if (!find_site_by_name(cl.site, &local, 1)) {
-			log_error("Cannot find \"%s\" in the configuration.",
-					cl.site);
+			log_error("Cannot find \"%s\" (myself) in the configuration.",
+				  cl.site);
 			return -EINVAL;
 		}
 		local->local = 1;
