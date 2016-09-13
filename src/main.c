@@ -377,9 +377,10 @@ static int setup_config(int type)
 			return -EINVAL;
 		}
 		local->local = 1;
-	} else
-		find_myself(NULL, type == CLIENT || type == GEOSTORE);
-
+	} else if (!find_myself(NULL, type == CLIENT || type == GEOSTORE)) {
+		log_error("Cannot find myself in the configuration.");
+		return -EINVAL;
+	}
 
 	rv = check_config(type);
 	if (rv < 0)
@@ -1302,13 +1303,6 @@ static int do_status(int type)
 		goto quit;
 	}
 
-
-	if (!local) {
-		reason = "No Service IP active here.";
-		goto quit;
-	}
-
-
 	rv = _lockfile(O_RDWR, &status_lock_fd, &pid);
 	if (status_lock_fd == -1) {
 		reason = "No PID file.";
@@ -1421,11 +1415,6 @@ static int do_server(int type)
 	rv = setup_config(type);
 	if (rv < 0)
 		return rv;
-
-	if (!local) {
-		log_error("Cannot find myself in the configuration.");
-		exit(EXIT_FAILURE);
-	}
 
 	if (daemonize) {
 		if (daemon(0, 0) < 0) {
