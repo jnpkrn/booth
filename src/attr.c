@@ -150,23 +150,12 @@ static int read_server_reply(
 	return rv;
 }
 
-int do_attr_command(cmd_request_t cmd)
+int do_attr_command(cmd_request_t cmd, struct booth_site *site)
 {
-	struct booth_site *site = NULL;
 	struct boothc_header *header;
 	struct booth_transport const *tpt;
 	int len, rv = -1;
 	char *msg = NULL;
-
-	if (!*cl.site)
-		site = local;
-	else {
-		if (!find_site_by_name(cl.site, &site, 1)) {
-			log_error("Site \"%s\" not configured.", cl.site);
-			rv = -ENOENT;
-			goto out_close;
-		}
-	}
 
 	if (site->type == ARBITRATOR) {
 		if (site == local) {
