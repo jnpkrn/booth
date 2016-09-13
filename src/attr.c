@@ -16,6 +16,7 @@
  * 51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
  */
 
+#include <errno.h>
 #include <stdio.h>
 #include <string.h>
 #include "attr.h"
@@ -162,6 +163,7 @@ int do_attr_command(cmd_request_t cmd)
 	else {
 		if (!find_site_by_name(cl.site, &site, 1)) {
 			log_error("Site \"%s\" not configured.", cl.site);
+			rv = -ENOENT;
 			goto out_close;
 		}
 	}

@@ -665,7 +665,7 @@ static int query_get_string_answer(cmd_request_t cmd)
 		site = local;
 	else if (!find_site_by_name(cl.site, &site, 1)) {
 		log_error("cannot find site \"%s\"", cl.site);
-		rv = ENOENT;
+		rv = -ENOENT;
 		goto out;
 	}
 
@@ -741,6 +741,7 @@ static int do_command(cmd_request_t cmd)
 	else {
 		if (!find_site_by_name(cl.site, &site, 1)) {
 			log_error("Site \"%s\" not configured.", cl.site);
+			rv = -ENOENT;
 			goto out_close;
 		}
 	}
