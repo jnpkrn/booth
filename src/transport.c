@@ -237,15 +237,21 @@ int _find_myself(int family, struct booth_site **mep, int fuzzy_allowed)
 							BOOTH_IPADDR_LEN);
 				}
 
-				/* First try with exact addresses, then optionally with subnet matching. */
-				if (ifa->ifa_prefixlen > address_bits_matched) {
-					find_address(ipaddr,
-							ifa->ifa_family, ifa->ifa_prefixlen,
-							fuzzy_allowed, &me, &address_bits_matched);
-					if (me) {
-						log_debug("found myself at %s (%d bits matched)",
-								site_string(me), address_bits_matched);
+				if (ifa->ifa_prefixlen >= address_bits_matched) {
+					/* First attempt exact match with addresses in the config,
+					   then optionally with subnet matching. */
+					if (find_address(ipaddr,
+							 ifa->ifa_family, ifa->ifa_prefixlen,
+							 fuzzy_allowed, &me, &address_bits_matched)
+							== EXACT_MATCH) {
+						log_debug("found exactly myself at %s (%d bits matched)",
+							  site_string(me), address_bits_matched);
+						break;
 					}
+					if (me)
+						log_debug("running winner to determine myself at %s"
+							  " (%d bits matched)",
+							  site_string(me), address_bits_matched);
 				}
 			}
 			h = NLMSG_NEXT(h, status);
