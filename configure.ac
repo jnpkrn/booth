@@ -17,6 +17,8 @@ AC_LANG([C])
 
 AC_SUBST(WITH_LIST, [""])
 
+PKG_PROG_PKG_CONFIG
+
 dnl Fix default variables - "prefix" variable if not specified
 if test "$prefix" = "NONE"; then
 	prefix="/usr"
@@ -86,12 +88,15 @@ fi
 
 AC_MSG_CHECKING(for special libxml2 includes)
 if test "x$XML2CONFIG" = "x"; then
-   AC_MSG_ERROR(libxml2 config not found)
+   PKG_CHECK_MODULES(XML2, [libxml-2.0],,
+		     [AC_MSG_ERROR(libxml2 config not found)])
+   XML2HEAD="$(XML2_CFLAGS)"
 else
    XML2HEAD="`$XML2CONFIG --cflags`"
-   AC_MSG_RESULT($XML2HEAD)
-   AC_CHECK_LIB(xml2, xmlReadMemory)
 fi
+
+AC_MSG_RESULT($XML2HEAD)
+AC_CHECK_LIB(xml2, xmlReadDoc)
 
 CPPFLAGS="$CPPFLAGS $XML2HEAD"
 
