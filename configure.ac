@@ -96,6 +96,8 @@ fi
 CPPFLAGS="$CPPFLAGS $XML2HEAD"
 
 PKG_CHECK_MODULES(GLIB, [glib-2.0])
+PKG_CHECK_MODULES([PCMK], [pacemaker-service],,
+		  [PKG_CHECK_MODULES([PCMK], [pcmk-service])])
 
 # Python casing, prefer 3.3+ to 2.{6...}
 AM_PATH_PYTHON([3.3], , [PYTHON=:])
@@ -120,9 +122,9 @@ AC_CHECK_HEADER([zlib.h],
 		[AC_SUBST(ZLIB_LIBS, ["-lz"])],
 		[AC_MSG_ERROR([zlib development files required])])
 saved_CPPFLAGS="${CPPFLAGS}"
-CPPFLAGS="${CPPFLAGS} ${GLIB_CFLAGS}"
-AC_CHECK_HEADER([pacemaker/crm/services.h], [],
-		[AC_MSG_ERROR([pacemaker/crm/services.h header required])])
+CPPFLAGS="${CPPFLAGS} ${PCMK_CFLAGS} ${GLIB_CFLAGS}"
+AC_CHECK_HEADER([crm/services.h], [],
+		[AC_MSG_ERROR([crm/services.h header required])])
 CPPFLAGS="${saved_CPPFLAGS}"
 
 # Checks for typedefs, structures, and compiler characteristics.
