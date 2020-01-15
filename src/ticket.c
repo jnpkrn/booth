@@ -87,14 +87,16 @@ int check_ticket(char *ticket, struct ticket_config **found)
 	return find_ticket_by_name(ticket, found);
 }
 
-int check_site(char *site, int *is_local)
+/* XXX UNUSED */
+int check_site(struct booth_config *conf_ptr, const char *site,
+               int *is_local)
 {
 	struct booth_site *node;
 
 	if (!check_max_len_valid(site, sizeof(node->addr_string)))
 		return 0;
 
-	if (find_site_by_name(site, &node, 0)) {
+	if (find_site_by_name(conf_ptr, site, &node, 0)) {
 		*is_local = node->local;
 		return 1;
 	}

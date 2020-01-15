@@ -943,18 +943,18 @@ g_inval:
 	return 0;
 }
 
-
-static int get_other_site(struct booth_site **node)
+static int get_other_site(struct booth_config *conf_ptr,
+                          struct booth_site **node)
 {
 	struct booth_site *n;
 	int i;
 
 	*node = NULL;
-	if (!booth_conf)
+	if (conf_ptr == NULL)
 		return 0;
 
-	for (i = 0; i < booth_conf->site_count; i++) {
-		n = booth_conf->site + i;
+	for (i = 0; i < conf_ptr->site_count; i++) {
+		n = conf_ptr->site + i;
 		if (n != local && n->type == SITE) {
 			if (!*node) {
 				*node = n;
@@ -967,20 +967,20 @@ static int get_other_site(struct booth_site **node)
 	return !*node ? 0 : 1;
 }
 
-
-int find_site_by_name(char *site, struct booth_site **node, int any_type)
+int find_site_by_name(struct booth_config *conf_ptr, const char *site,
+                      struct booth_site **node, int any_type)
 {
 	struct booth_site *n;
 	int i;
 
-	if (!booth_conf)
+	if (conf_ptr == NULL)
 		return 0;
 
 	if (!strcmp(site, OTHER_SITE))
-		return get_other_site(node);
+		return get_other_site(conf_ptr, node);
 
-	for (i = 0; i < booth_conf->site_count; i++) {
-		n = booth_conf->site + i;
+	for (i = 0; i < conf_ptr->site_count; i++) {
+		n = conf_ptr->site + i;
 		if ((n->type == SITE || any_type) &&
 		    strncmp(n->addr_string, site, sizeof(n->addr_string)) == 0) {
 			*node = n;

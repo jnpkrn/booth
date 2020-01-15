@@ -376,7 +376,7 @@ static int setup_config(struct booth_config **conf_pptr, int type)
 
 	/* Set "local" pointer, ignoring errors. */
 	if (cl.type == DAEMON && cl.site[0]) {
-		if (!find_site_by_name(cl.site, &local, 1)) {
+		if (!find_site_by_name(booth_conf, cl.site, &local, 1)) {
 			log_error("Cannot find \"%s\" in the configuration.",
 					cl.site);
 			return -EINVAL;
@@ -668,7 +668,7 @@ static int query_get_string_answer(cmd_request_t cmd)
 
 	if (!*cl.site)
 		site = local;
-	else if (!find_site_by_name(cl.site, &site, 1)) {
+	else if (!find_site_by_name(booth_conf, cl.site, &site, 1)) {
 		log_error("cannot find site \"%s\"", cl.site);
 		rv = ENOENT;
 		goto out;
@@ -744,7 +744,7 @@ static int do_command(cmd_request_t cmd)
 	if (!*cl.site)
 		site = local;
 	else {
-		if (!find_site_by_name(cl.site, &site, 1)) {
+		if (!find_site_by_name(booth_conf, cl.site, &site, 1)) {
 			log_error("Site \"%s\" not configured.", cl.site);
 			goto out_close;
 		}
@@ -1560,7 +1560,7 @@ static int do_attr(struct booth_config **conf_pptr)
 
 	case ATTR_SET:
 	case ATTR_DEL:
-		rv = do_attr_command(cl.op);
+		rv = do_attr_command(booth_conf, cl.op);
 		break;
 	}
 

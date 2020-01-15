@@ -97,7 +97,22 @@ void save_committed_tkt(struct ticket_config *tk);
 void disown_ticket(struct ticket_config *tk);
 int disown_if_expired(struct ticket_config *tk);
 int check_ticket(char *ticket, struct ticket_config **tc);
-int check_site(char *site, int *local);
+
+/**
+ * @internal
+ * Check whether given site is valid
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] site which member to look for
+ * @param[out] is_local store whether the member is local on success
+ *
+ * @note XXX UNUSED
+ *
+ * @return 1 on success (found and valid), 0 otherwise
+ */
+int check_site(struct booth_config *conf_ptr, const char *site,
+               int *local);
+
 int grant_ticket(struct ticket_config *ticket);
 int revoke_ticket(struct ticket_config *ticket);
 int list_ticket(char **pdata, unsigned int *len);
