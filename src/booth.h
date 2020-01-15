@@ -160,6 +160,8 @@ struct attr_msg {
 
 /* GEO attributes
  * attributes should be regularly updated.
+ * Regarding alignment and respective layout, see the commentary
+ * at struct booth_site.
  */
 struct geo_attr {
 	/** Update timestamp. */
@@ -171,7 +173,7 @@ struct geo_attr {
 	/** Who set it (currently unused)
 	struct booth_site *origin;
 	*/
-} __attribute__((packed));
+} __attribute__((packed, aligned(_Alignof(timetype))));
 
 struct hmac {
 	/** hash id, currently set to constant BOOTH_HASH */
@@ -282,6 +284,25 @@ typedef enum {
 /** @{ */
 
 struct booth_site {
+	/* for a packed struct, we'd rather put subjects to address-of
+	   operator first, in biggest-to-lowest _Alignof(typeof(<member>))
+	   order, since then it's enough to "just" align whole-struct
+	   boundaries to _Alignof(<first member>) and the misaligned
+	   pointer access is no longer at risk;
+	   alternatively, we may explicitly align respective members
+	   at their original in-struct offsets, but that would just
+	   introduce additional paddings */
+	time_t last_recv;
+	union {
+		struct sockaddr_in  sa4;
+		struct sockaddr_in6 sa6;
+	};
+
+	/* data locality related to the above use-by-reference members */
+	unsigned short family;
+	int saddrlen;
+	int addrlen;
+
 	/** Calculated ID. See add_site(). */
 	int site_id;
 	int type;
@@ -300,16 +321,8 @@ struct booth_site {
 	int index;
 	uint64_t bitmask;
 
-	unsigned short family;
-	union {
-		struct sockaddr_in  sa4;
-		struct sockaddr_in6 sa6;
-	};
-	int saddrlen;
-	int addrlen;
-
 	/** statistics */
-	time_t last_recv;
+	/* time_t last_recv; // previous location */
 	unsigned int sent_cnt;
 	unsigned int sent_err_cnt;
 	unsigned int resend_cnt;
@@ -321,7 +334,7 @@ struct booth_site {
 	/** last timestamp seen from this site */
 	uint32_t last_secs;
 	uint32_t last_usecs;
-} __attribute__((packed));
+} __attribute__((packed, aligned(_Alignof(time_t))));
 
 
 
