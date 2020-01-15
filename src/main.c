@@ -349,11 +349,13 @@ int update_authkey()
 	return 0;
 }
 
-static int setup_config(int type)
+static int setup_config(struct booth_config **conf_pptr, int type)
 {
 	int rv;
 
-	rv = read_config(cl.configfile, type);
+	assert(conf_pptr != NULL);
+
+	rv = read_config(conf_pptr, cl.configfile, type);
 	if (rv < 0)
 		goto out;
 
@@ -392,8 +394,8 @@ static int setup_config(int type)
 	/* Per default the PID file name is derived from the
 	 * configuration name. */
 	if (!cl.lockfile[0]) {
-		snprintf(cl.lockfile, sizeof(cl.lockfile)-1,
-				"%s/%s.pid", BOOTH_RUN_DIR, booth_conf->name);
+		snprintf(cl.lockfile, sizeof(cl.lockfile) - 1,
+		         "%s/%s.pid", BOOTH_RUN_DIR, (*conf_pptr)->name);
 	}
 
 out:
@@ -1291,17 +1293,18 @@ static int set_procfs_val(const char *path, const char *val)
 	return rc;
 }
 
-static int do_status(int type)
+static int do_status(struct booth_config **conf_pptr, int type)
 {
 	pid_t pid;
 	int rv, status_lock_fd, ret;
 	const char *reason = NULL;
 	char lockfile_data[1024], *cp;
 
+	assert(conf_pptr != NULL);
 
 	ret = PCMK_OCF_NOT_RUNNING;
 
-	rv = setup_config(type);
+	rv = setup_config(conf_pptr, type);
 	if (rv) {
 		reason = "Error reading configuration.";
 		ret = PCMK_OCF_UNKNOWN_ERROR;
@@ -1363,7 +1366,7 @@ static int do_status(int type)
 			cl.lockfile, lockfile_data);
 	if (!daemonize)
 		fprintf(stderr, "Booth at %s port %d seems to be running.\n",
-				local->addr_string, booth_conf->port);
+		        local->addr_string, (*conf_pptr)->port);
 	return 0;
 
 
@@ -1419,12 +1422,14 @@ static void sig_exit_handler(int sig)
 	exit(0);
 }
 
-static int do_server(int type)
+static int do_server(struct booth_config **conf_pptr, int type)
 {
 	int rv = -1;
 	static char log_ent[128] = DAEMON_NAME "-";
 
-	rv = setup_config(type);
+	assert(conf_pptr != NULL);
+
+	rv = setup_config(conf_pptr, type);
 	if (rv < 0)
 		return rv;
 
@@ -1468,11 +1473,8 @@ static int do_server(int type)
 	if (set_procfs_val("/proc/self/oom_score_adj", "-999"))
 		(void)set_procfs_val("/proc/self/oom_adj", "-16");
 	set_proc_title("%s %s %s for [%s]:%d",
-			DAEMON_NAME,
-			cl.configfile,
-			type_to_string(local->type),
-			local->addr_string,
-			booth_conf->port);
+	               DAEMON_NAME, cl.configfile, type_to_string(local->type),
+	               local->addr_string, (*conf_pptr)	->port);
 
 	rv = limit_this_process();
 	if (rv)
@@ -1496,11 +1498,11 @@ static int do_server(int type)
 	return rv;
 }
 
-static int do_client(void)
+static int do_client(struct booth_config **conf_pptr)
 {
 	int rv;
 
-	rv = setup_config(CLIENT);
+	rv = setup_config(conf_pptr, CLIENT);
 	if (rv < 0) {
 		log_error("cannot read config");
 		goto out;
@@ -1522,11 +1524,13 @@ out:
 	return rv;
 }
 
-static int do_attr(void)
+static int do_attr(struct booth_config **conf_pptr)
 {
 	int rv = -1;
 
-	rv = setup_config(GEOSTORE);
+	assert(conf_pptr != NULL);
+
+	rv = setup_config(conf_pptr, GEOSTORE);
 	if (rv < 0) {
 		log_error("cannot read config");
 		goto out;
@@ -1537,9 +1541,10 @@ static int do_attr(void)
 	 * Although, that means that the UDP port has to be specified, too. */
 	if (!cl.attr_msg.attr.tkt_id[0]) {
 		/* If the loaded configuration has only a single ticket defined, use that. */
-		if (booth_conf->ticket_count == 1) {
-			strncpy(cl.attr_msg.attr.tkt_id, booth_conf->ticket[0].name,
-				sizeof(cl.attr_msg.attr.tkt_id));
+		if ((*conf_pptr)->ticket_count == 1) {
+			strncpy(cl.attr_msg.attr.tkt_id,
+			        (*conf_pptr)->ticket[0].name,
+			        sizeof(cl.attr_msg.attr.tkt_id));
 		} else {
 			rv = 1;
 			log_error("No ticket given.");
@@ -1606,21 +1611,21 @@ int main(int argc, char *argv[], char *envp[])
 
 	switch (cl.type) {
 	case STATUS:
-		rv = do_status(cl.type);
+		rv = do_status(&booth_conf, cl.type);
 		break;
 
 	case ARBITRATOR:
 	case DAEMON:
 	case SITE:
-		rv = do_server(cl.type);
+		rv = do_server(&booth_conf, cl.type);
 		break;
 
 	case CLIENT:
-		rv = do_client();
+		rv = do_client(&booth_conf);
 		break;
 
 	case GEOSTORE:
-		rv = do_attr();
+		rv = do_attr(&booth_conf);
 		break;
 	}
 
