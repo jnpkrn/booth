@@ -25,6 +25,8 @@
 #include "booth.h"
 #include "timer.h"
 #include "raft.h"
+
+struct booth_config;
 #include "transport.h"
 
 
@@ -367,7 +369,18 @@ int check_config(struct booth_config *conf_ptr, int type);
 int find_site_by_name(struct booth_config *conf_ptr, const char *site,
                       struct booth_site **node, int any_type);
 
-int find_site_by_id(uint32_t site_id, struct booth_site **node);
+/**
+ * @internal
+ * Find site in booth configuration by a hash (id)
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] site_id hash (id) to match against previously resolved ones
+ * @param[out] node relevant tracked data when found
+ *
+ * @return 0 if nothing found, or 1 when found (node assigned accordingly)
+ */
+int find_site_by_id(struct booth_config *conf_ptr, uint32_t site_id,
+                    struct booth_site **node);
 
 const char *type_to_string(int type);
 

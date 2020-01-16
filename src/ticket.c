@@ -628,7 +628,7 @@ void update_ticket_state(struct ticket_config *tk, struct booth_site *sender)
 	}
 }
 
-int setup_ticket(void)
+int setup_ticket(struct booth_config *conf_ptr)
 {
 	struct ticket_config *tk;
 	int i;
@@ -637,7 +637,7 @@ int setup_ticket(void)
 		reset_ticket(tk);
 
 		if (local->type == SITE) {
-			if (!pcmk_handler.load_ticket(tk)) {
+			if (!pcmk_handler.load_ticket(conf_ptr, tk)) {
 				update_ticket_state(tk, NULL);
 			}
 			tk->update_cib = 1;
@@ -1213,7 +1213,8 @@ static void update_acks(
 }
 
 /* read ticket message */
-int ticket_recv(void *buf, struct booth_site *source)
+int ticket_recv(struct booth_config *conf_ptr, void *buf,
+                struct booth_site *source)
 {
 	struct boothc_ticket_msg *msg;
 	struct ticket_config *tk;
@@ -1231,7 +1232,7 @@ int ticket_recv(void *buf, struct booth_site *source)
 
 
 	leader_u = ntohl(msg->ticket.leader);
-	if (!find_site_by_id(leader_u, &leader)) {
+	if (!find_site_by_id(conf_ptr, leader_u, &leader)) {
 		tk_log_error("message with unknown leader %u received", leader_u);
 		source->invalid_cnt++;
 		return -EINVAL;

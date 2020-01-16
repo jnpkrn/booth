@@ -33,14 +33,14 @@
 #include <netinet/tcp.h>
 #include <sys/socket.h>  /* getnameinfo */
 #include "b_config.h"
+#include "config.h"
+#include "transport.h"
 #include "attr.h"
 #include "auth.h"
 #include "booth.h"
-#include "config.h"
 #include "inline-fn.h"
 #include "log.h"
 #include "ticket.h"
-#include "transport.h"
 
 #define BOOTH_IPADDR_LEN	(sizeof(struct in6_addr))
 
@@ -1089,7 +1089,7 @@ int send_header_plus(int fd, struct boothc_hdr_msg *msg, void *data, int len)
 }
 
 /* UDP message receiver (see also deliver_fn declaration's comment) */
-int message_recv(void *msg, int msglen)
+int message_recv(struct booth_config *conf_ptr, void *msg, int msglen)
 {
 	uint32_t from;
 	struct boothc_header *header;
@@ -1098,7 +1098,7 @@ int message_recv(void *msg, int msglen)
 	header = (struct boothc_header *)msg;
 
 	from = ntohl(header->from);
-	if (!find_site_by_id(from, &source)) {
+	if (!find_site_by_id(conf_ptr, from, &source)) {
 		/* caller knows the actual source address, pass
 		   the (assuredly) positive number and let it report */
 		from = from ? from : ~from;  /* avoid 0 (success) */
@@ -1126,6 +1126,6 @@ int message_recv(void *msg, int msglen)
 		 */
 		return attr_recv(msg, source);
 	} else {
-		return ticket_recv(msg, source);
+		return ticket_recv(conf_ptr, msg, source);
 	}
 }

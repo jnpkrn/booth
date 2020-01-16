@@ -493,7 +493,7 @@ static int loop(int fd)
 	if (rv < 0)
 		goto fail;
 
-	rv = setup_ticket();
+	rv = setup_ticket(booth_conf);
 	if (rv < 0)
 		goto fail;
 
@@ -799,7 +799,7 @@ read_more:
 	if (rv == 1) {
 		tpt->close(site);
 		leader_id = ntohl(reply.ticket.leader);
-		if (!find_site_by_id(leader_id, &site)) {
+		if (!find_site_by_id(booth_conf, leader_id, &site)) {
 			log_error("Message with unknown redirect site %x received", leader_id);
 			rv = -1;
 			goto out_close;

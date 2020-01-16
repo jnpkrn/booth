@@ -117,11 +117,33 @@ int grant_ticket(struct ticket_config *ticket);
 int revoke_ticket(struct ticket_config *ticket);
 int list_ticket(char **pdata, unsigned int *len);
 
-int ticket_recv(void *buf, struct booth_site *source);
+/**
+ * @internal
+ * Second stage of incoming datagram handling (after authentication)
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] buf raw message to act upon
+ * @param[in] source member originating this message
+ *
+ * @return 0 on success or negative value (-1 or -errno) on error
+ */
+int ticket_recv(struct booth_config *conf_ptr, void *buf,
+                struct booth_site *source);
+
 void reset_ticket(struct ticket_config *tk);
 void reset_ticket_and_set_no_leader(struct ticket_config *tk);
 void update_ticket_state(struct ticket_config *tk, struct booth_site *sender);
-int setup_ticket(void);
+
+/**
+ * @internal
+ * Initial "consult local pacemaker and booth peers" inquiries
+ *
+ * @param[inout] conf_ptr config object to use as a starting point
+ *
+ * @return 0 (for the time being)
+ */
+int setup_ticket(struct booth_config *conf_ptr);
+
 int check_max_len_valid(const char *s, int max);
 
 int do_grant_ticket(struct ticket_config *ticket, int options);

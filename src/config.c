@@ -991,7 +991,8 @@ int find_site_by_name(struct booth_config *conf_ptr, const char *site,
 	return 0;
 }
 
-int find_site_by_id(uint32_t site_id, struct booth_site **node)
+int find_site_by_id(struct booth_config *conf_ptr, uint32_t site_id,
+                    struct booth_site **node)
 {
 	struct booth_site *n;
 	int i;
@@ -1001,11 +1002,11 @@ int find_site_by_id(uint32_t site_id, struct booth_site **node)
 		return 1;
 	}
 
-	if (!booth_conf)
+	if (conf_ptr == NULL)
 		return 0;
 
-	for (i = 0; i < booth_conf->site_count; i++) {
-		n = booth_conf->site + i;
+	for (i = 0; i < conf_ptr->site_count; i++) {
+		n = conf_ptr->site + i;
 		if (n->site_id == site_id) {
 			*node = n;
 			return 1;
@@ -1014,7 +1015,6 @@ int find_site_by_id(uint32_t site_id, struct booth_site **node)
 
 	return 0;
 }
-
 
 const char *type_to_string(int type)
 {
