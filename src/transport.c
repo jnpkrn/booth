@@ -77,11 +77,10 @@ enum match_type {
 	EXACT_MATCH,
 };
 
-static int find_address(unsigned char ipaddr[BOOTH_IPADDR_LEN],
-		int family, int prefixlen,
-		int fuzzy_allowed,
-		struct booth_site **me,
-		int *address_bits_matched)
+static int find_address(struct booth_config *conf_ptr,
+                        unsigned char ipaddr[BOOTH_IPADDR_LEN],
+                        int family, int prefixlen, int fuzzy_allowed,
+                        struct booth_site **me, int *address_bits_matched)
 {
 	int i;
 	struct booth_site *node;
@@ -91,14 +90,15 @@ static int find_address(unsigned char ipaddr[BOOTH_IPADDR_LEN],
 	int matched;
 	enum match_type did_match = NO_MATCH;
 
+	assert(conf_ptr != NULL);
 
 	bytes = prefixlen / 8;
 	bits_left = prefixlen % 8;
 	/* One bit left to check means ignore 7 lowest bits. */
 	mask = ~( (1 << (8 - bits_left)) -1);
 
-	for (i = 0; i < booth_conf->site_count; i++) {
-		node = booth_conf->site + i;
+	for (i = 0; i < conf_ptr->site_count; i++) {
+		node = conf_ptr->site + i;
 		if (family != node->family)
 			continue;
 		n_a = node_to_addr_pointer(node);
@@ -140,8 +140,8 @@ static int find_address(unsigned char ipaddr[BOOTH_IPADDR_LEN],
 }
 
 
-int _find_myself(int family, struct booth_site **mep, int fuzzy_allowed);
-int _find_myself(int family, struct booth_site **mep, int fuzzy_allowed)
+static int _find_myself(struct booth_config *conf_ptr, int family,
+                        struct booth_site **mep, int fuzzy_allowed)
 {
 	int fd;
 	struct sockaddr_nl nladdr;
@@ -244,9 +244,9 @@ int _find_myself(int family, struct booth_site **mep, int fuzzy_allowed)
 				 * the function find_address will try to return another, most similar
 				 * address (with the longest possible number of same bytes). */
 				if (ifa->ifa_prefixlen > address_bits_matched) {
-					find_address(ipaddr,
-							ifa->ifa_family, ifa->ifa_prefixlen,
-							fuzzy_allowed, &me, &address_bits_matched);
+					find_address(conf_ptr, ipaddr,
+					             ifa->ifa_family, ifa->ifa_prefixlen,
+					             fuzzy_allowed, &me, &address_bits_matched);
 
 					if (me) {
 						log_debug("found myself at %s (%d bits matched)",
@@ -260,9 +260,9 @@ int _find_myself(int family, struct booth_site **mep, int fuzzy_allowed)
 				 * call the function find_address with disabled searching of
 				 * similar addresses (fuzzy_allowed == 0) */
 				else if (ifa->ifa_prefixlen == address_bits_matched) {
-					find_address(ipaddr,
-							ifa->ifa_family, ifa->ifa_prefixlen,
-							0 /* fuzzy_allowed */, &me, &address_bits_matched);
+					find_address(conf_ptr, ipaddr,
+					             ifa->ifa_family, ifa->ifa_prefixlen,
+					             0 /* fuzzy_allowed */, &me, &address_bits_matched);
 
 					if (me) {
 						log_debug("found myself at %s (exact match)",
@@ -287,10 +287,11 @@ found:
 	return 1;
 }
 
-int find_myself(struct booth_site **mep, int fuzzy_allowed)
+int find_myself(struct booth_config *conf_ptr, struct booth_site **mep,
+                int fuzzy_allowed)
 {
-	return _find_myself(AF_INET6, mep, fuzzy_allowed) ||
-		_find_myself(AF_INET, mep, fuzzy_allowed);
+	return _find_myself(conf_ptr, AF_INET6, mep, fuzzy_allowed) ||
+		_find_myself(conf_ptr, AF_INET, mep, fuzzy_allowed);
 }
 
 
