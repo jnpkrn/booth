@@ -431,22 +431,19 @@ static int write_daemon_state(int fd, int state)
 
 	size = sizeof(buffer) - 1;
 	rv = snprintf(buffer, size,
-			"booth_pid=%d "
-			"booth_state=%s "
-			"booth_type=%s "
-			"booth_cfg_name='%s' "
-			"booth_id=%d "
-			"booth_addr_string='%s' "
-			"booth_port=%d\n",
-		getpid(), 
-		( state == BOOTHD_STARTED  ? "started"  : 
-		  state == BOOTHD_STARTING ? "starting" : 
-		  "invalid"), 
-		type_to_string(local->type),
-		booth_conf->name,
-		local->site_id,
-		local->addr_string,
-		booth_conf->port);
+	              "booth_pid=%d "
+	              "booth_state=%s "
+	              "booth_type=%s "
+	              "booth_cfg_name='%s' "
+	              "booth_id=%d "
+	              "booth_addr_string='%s' "
+	              "booth_port=%d\n",
+	              getpid(),
+	              ( state == BOOTHD_STARTED  ? "started"  :
+	                  state == BOOTHD_STARTING ? "starting" : "invalid"),
+	              type_to_string(local->type), booth_conf->name,
+	              get_local_id(), site_string(local),
+	              site_port(local));
 
 	if (rv < 0 || rv == size) {
 		log_error("Buffer filled up in write_daemon_state().");
@@ -1367,7 +1364,7 @@ static int do_status(struct booth_config **conf_pptr, int type)
 			cl.lockfile, lockfile_data);
 	if (!daemonize)
 		fprintf(stderr, "Booth at %s port %d seems to be running.\n",
-		        local->addr_string, (*conf_pptr)->port);
+		        site_string(local), site_port(local));
 	return 0;
 
 
@@ -1475,7 +1472,7 @@ static int do_server(struct booth_config **conf_pptr, int type)
 		(void)set_procfs_val("/proc/self/oom_adj", "-16");
 	set_proc_title("%s %s %s for [%s]:%d",
 	               DAEMON_NAME, cl.configfile, type_to_string(local->type),
-	               local->addr_string, (*conf_pptr)	->port);
+	               site_string(local), site_port(local));
 
 	rv = limit_this_process();
 	if (rv)

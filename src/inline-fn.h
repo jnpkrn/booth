@@ -153,11 +153,31 @@ static inline struct booth_transport const *transport(void)
 }
 
 
-static inline const char *site_string(struct booth_site *site)
+static inline const char *site_string(const struct booth_site *site)
 {
 	return site ? site->addr_string : "NONE";
 }
 
+/**
+ * @internal
+ * Parse booth configuration file and store as structured data
+ *
+ * @param[in] site subject of TCP/UDP port extraction
+ *
+ * @return 0 for "undefined", actual port number otherwise
+ */
+static inline uint16_t site_port(const struct booth_site *site)
+{
+	assert(site != NULL);
+
+	return site
+		? site->family == AF_INET
+			? ntohs(site->sa4.sin_port)
+			: site->family == AF_INET6
+				? ntohs(site->sa6.sin6_port)
+				: 0
+		: 0;
+}
 
 static inline const char *ticket_leader_string(struct ticket_config *tk)
 {

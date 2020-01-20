@@ -764,8 +764,8 @@ static int setup_udp_server(void)
 
 	if (rv == -1) {
 		log_error("failed to bind UDP socket to [%s]:%d: %s",
-				site_string(local), booth_conf->port,
-				strerror(errno));
+		          site_string(local), site_port(local),
+		          strerror(errno));
 		goto ex;
 	}
 
