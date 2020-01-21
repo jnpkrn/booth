@@ -96,7 +96,19 @@ extern int TIME_RES;
 void save_committed_tkt(struct ticket_config *tk);
 void disown_ticket(struct ticket_config *tk);
 int disown_if_expired(struct ticket_config *tk);
-int check_ticket(char *ticket, struct ticket_config **tc);
+
+/**
+ * @internal
+ * Pick a ticket structure based on given name, with some apriori sanity checks
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] ticket name of the ticket to search for
+ * @param[out] found place the reference here when found
+ *
+ * @return 0 on failure, see @find_ticket_by_name otherwise
+ */
+int check_ticket(struct booth_config *conf_ptr, const char *ticket,
+                 struct ticket_config **tc);
 
 /**
  * @internal
@@ -155,7 +167,18 @@ int setup_ticket(struct booth_config *conf_ptr);
 
 int check_max_len_valid(const char *s, int max);
 
-int find_ticket_by_name(const char *ticket, struct ticket_config **found);
+/**
+ * @internal
+ * Pick a ticket structure based on given name
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] ticket name of the ticket to search for
+ * @param[out] found place the reference here when found
+ *
+ * @return see @list_ticket and @send_header_plus
+ */
+int find_ticket_by_name(struct booth_config *conf_ptr,
+                        const char *ticket, struct ticket_config **found);
 
 void set_ticket_wakeup(struct ticket_config *tk);
 int postpone_ticket_processing(struct ticket_config *tk);

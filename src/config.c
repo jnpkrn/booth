@@ -256,7 +256,7 @@ static int add_ticket(struct booth_config *conf_ptr, const char *name,
 		return -EINVAL;
 	}
 
-	if (find_ticket_by_name(name, NULL)) {
+	if (find_ticket_by_name(conf_ptr, name, NULL)) {
 		log_error("ticket name \"%s\" used again.", name);
 		return -EINVAL;
 	}

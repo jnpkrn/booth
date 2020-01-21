@@ -56,18 +56,21 @@ int check_max_len_valid(const char *s, int max)
 	return 0;
 }
 
-int find_ticket_by_name(const char *ticket, struct ticket_config **found)
+int find_ticket_by_name(struct booth_config *conf_ptr,
+                        const char *ticket, struct ticket_config **found)
 {
+	struct ticket_config *tk;
 	int i;
+
+	assert(conf_ptr != NULL);
 
 	if (found)
 		*found = NULL;
 
-	for (i = 0; i < booth_conf->ticket_count; i++) {
-		if (!strncmp(booth_conf->ticket[i].name, ticket,
-			     sizeof(booth_conf->ticket[i].name))) {
+	FOREACH_TICKET(conf_ptr, i, tk) {
+		if (!strncmp(tk->name, ticket, sizeof(tk->name))) {
 			if (found)
-				*found = booth_conf->ticket + i;
+				*found = tk;
 			return 1;
 		}
 	}
@@ -75,16 +78,18 @@ int find_ticket_by_name(const char *ticket, struct ticket_config **found)
 	return 0;
 }
 
-int check_ticket(char *ticket, struct ticket_config **found)
+int check_ticket(struct booth_config *conf_ptr, const char *ticket,
+                 struct ticket_config **found)
 {
 	if (found)
 		*found = NULL;
-	if (!booth_conf)
+
+	if (conf_ptr == NULL)
 		return 0;
 
-	if (!check_max_len_valid(ticket, sizeof(booth_conf->ticket[0].name)))
+	if (!check_max_len_valid(ticket, sizeof(conf_ptr->ticket[0].name)))
 		return 0;
-	return find_ticket_by_name(ticket, found);
+	return find_ticket_by_name(conf_ptr, ticket, found);
 }
 
 /* XXX UNUSED */
@@ -702,7 +707,7 @@ int process_client_request(struct booth_config *conf_ptr,
 
 	msg = (struct boothc_ticket_msg *)buf;
 	cmd = ntohl(msg->header.cmd);
-	if (!check_ticket(msg->ticket.id, &tk)) {
+	if (!check_ticket(conf_ptr, msg->ticket.id, &tk)) {
 		log_warn("client referenced unknown ticket %s",
 				msg->ticket.id);
 		rv = RLT_INVALID_ARG;
@@ -898,6 +903,8 @@ static void resend_msg(struct booth_config *conf_ptr,
 {
 	struct booth_site *n;
 	int i;
+
+	assert(conf_ptr != NULL);
 
 	if (!(tk->acks_received ^ local->bitmask)) {
 		ticket_broadcast(conf_ptr, tk, tk->last_request, 0,
@@ -1257,7 +1264,7 @@ int ticket_recv(struct booth_config *conf_ptr, void *buf,
 
 	msg = (struct boothc_ticket_msg *)buf;
 
-	if (!check_ticket(msg->ticket.id, &tk)) {
+	if (!check_ticket(conf_ptr, msg->ticket.id, &tk)) {
 		log_warn("got invalid ticket name %s from %s",
 				msg->ticket.id, site_string(source));
 		source->invalid_cnt++;

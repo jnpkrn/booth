@@ -474,7 +474,7 @@ static void process_connection(struct booth_config *conf_ptr, int ci)
 	case ATTR_GET:
 	case ATTR_SET:
 	case ATTR_DEL:
-		if (process_attr_request(req_cl, msg) == 1)
+		if (process_attr_request(conf_ptr, req_cl, msg) == 1)
 			goto kill; /* request processed definitely, close connection */
 		else
 			return;
@@ -1124,7 +1124,7 @@ int message_recv(struct booth_config *conf_ptr, void *msg, int msglen)
 		/* not used, clients send/retrieve attributes directly
 		 * from sites
 		 */
-		return attr_recv(msg, source);
+		return attr_recv(conf_ptr, msg, source);
 	} else {
 		return ticket_recv(conf_ptr, msg, source);
 	}
