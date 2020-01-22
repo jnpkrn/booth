@@ -403,6 +403,20 @@ static int do_revoke_ticket(struct booth_config *conf_ptr,
 	}
 }
 
+static int number_sites_marked_as_granted(struct booth_config *conf_ptr,
+                                          struct ticket_config *tk)
+{
+	struct booth_site *ignored __attribute__((unused));
+	int i, result = 0;
+
+	assert(conf_ptr != NULL);
+
+	FOREACH_NODE(conf_ptr, i, ignored) {
+		result += tk->sites_where_granted[i];
+	}
+
+	return result;
+}
 
 static int list_ticket(struct booth_config *conf_ptr, char **pdata,
                        unsigned int *len)
@@ -424,7 +438,8 @@ static int list_ticket(struct booth_config *conf_ptr, char **pdata,
 	alloc = conf_ptr->ticket_count * (BOOTH_NAME_LEN * 2 + 128 + 16);
 
 	FOREACH_TICKET(conf_ptr, i, tk) {
-		multiple_grant_warning_length = number_sites_marked_as_granted(tk);
+		multiple_grant_warning_length = \
+			number_sites_marked_as_granted(conf_ptr, tk);
 
 		if (multiple_grant_warning_length > 1) {
 			// 164: 55 + 45 + 2*number_of_multiple_sites + some margin
@@ -486,7 +501,8 @@ static int list_ticket(struct booth_config *conf_ptr, char **pdata,
 	}
 
 	FOREACH_TICKET(conf_ptr, i, tk) {
-		multiple_grant_warning_length = number_sites_marked_as_granted(tk);
+		multiple_grant_warning_length = \
+			number_sites_marked_as_granted(conf_ptr, tk);
 
 		if (multiple_grant_warning_length > 1) {
 			cp += snprintf(cp,
@@ -874,10 +890,13 @@ int leader_update_ticket(struct booth_config *conf_ptr,
 }
 
 
-static void log_lost_servers(struct ticket_config *tk)
+static void log_lost_servers(struct booth_config *conf_ptr,
+                             struct ticket_config *tk)
 {
 	struct booth_site *n;
 	int i;
+
+	assert(conf_ptr != NULL);
 
 	if (tk->retry_number > 1)
 		/* log those that we couldn't reach, but do
@@ -885,8 +904,7 @@ static void log_lost_servers(struct ticket_config *tk)
 		 */
 		return;
 
-	for (i = 0; i < booth_conf->site_count; i++) {
-		n = booth_conf->site + i;
+	FOREACH_NODE(conf_ptr, i, n) {
 		if (!(tk->acks_received & n->bitmask)) {
 			tk_log_warn("%s %s didn't acknowledge our %s, "
 			"will retry %d times",
@@ -957,7 +975,7 @@ static void handle_resends(struct booth_config *conf_ptr,
 			ack_cnt);
 		}
 	} else {
-		log_lost_servers(tk);
+		log_lost_servers(conf_ptr, tk);
 	}
 
 just_resend:
@@ -1397,24 +1415,10 @@ void schedule_election(struct ticket_config *tk, cmd_reason_t reason)
 	add_random_delay(tk);
 }
 
-
 int is_manual(struct ticket_config *tk)
 {
 	return (tk->mode == TICKET_MODE_MANUAL) ? 1 : 0;
 }
-
-int number_sites_marked_as_granted(struct ticket_config *tk)
-{
-	int i, result = 0;
-
-	for(i=0; i<booth_conf->site_count; ++i) {
-		result += tk->sites_where_granted[i];
-	}
-
-	return result;
-}
-
-
 
 /* Given a state (in host byte order), return a human-readable (char*).
  * An array is used so that multiple states can be printed in a single printf(). */
