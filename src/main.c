@@ -259,8 +259,7 @@ static int format_peers(char **pdata, unsigned int *len)
 	return 0;
 }
 
-
-void list_peers(int fd)
+void list_peers(struct booth_config *conf_ptr, int fd)
 {
 	char *data;
 	unsigned int olen;
@@ -270,7 +269,7 @@ void list_peers(int fd)
 		goto out;
 
 	init_header(&hdr.header, CL_LIST, 0, 0, RLT_SUCCESS, 0, sizeof(hdr) + olen);
-	(void)send_header_plus(fd, &hdr, data, olen);
+	(void) send_header_plus(conf_ptr, fd, &hdr, data, olen);
 
 out:
 	if (data)
@@ -677,7 +676,7 @@ static int query_get_string_answer(cmd_request_t cmd)
 	if (rv < 0)
 		goto out_close;
 
-	rv = tpt->send(site, request, msg_size);
+	rv = tpt->send(booth_conf, site, request, msg_size);
 	if (rv < 0)
 		goto out_close;
 
@@ -780,7 +779,7 @@ redirect:
 	if (rv < 0)
 		goto out_close;
 
-	rv = tpt->send(site, &cl.msg, sendmsglen(&cl.msg));
+	rv = tpt->send(booth_conf, site, &cl.msg, sendmsglen(&cl.msg));
 	if (rv < 0)
 		goto out_close;
 

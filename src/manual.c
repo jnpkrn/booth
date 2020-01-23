@@ -83,7 +83,7 @@ int process_REVOKE_for_manual_ticket(struct booth_config *conf_ptr,
 	// (and which had sent this message).
 
 	// We send the ACK, to satisfy the requestor.
-	rv = send_msg(OP_ACK, tk, sender, msg);		
+	rv = send_msg(conf_ptr, OP_ACK, tk, sender, msg);		
 
 	// Mark this ticket as not granted to the sender anymore.
 	mark_ticket_as_revoked(tk, sender);

@@ -703,7 +703,7 @@ int ticket_answer_list(struct booth_config *conf_ptr, int fd)
 		goto out;
 
 	init_header(&hdr.header, CL_LIST, 0, 0, RLT_SUCCESS, 0, sizeof(hdr) + olen);
-	rv = send_header_plus(fd, &hdr, data, olen);
+	rv = send_header_plus(conf_ptr, fd, &hdr, data, olen);
 
 out:
 	if (data)
@@ -770,12 +770,12 @@ int process_client_request(struct booth_config *conf_ptr,
 
 reply_now:
 	init_ticket_msg(&omsg, CL_RESULT, 0, rv, 0, tk);
-	send_client_msg(req_client->fd, &omsg);
+	send_client_msg(conf_ptr, req_client->fd, &omsg);
 	return rc;
 }
 
-int notify_client(struct ticket_config *tk, int client_fd,
-    struct boothc_ticket_msg *msg)
+int notify_client(struct booth_config *conf_ptr, struct ticket_config *tk,
+                  int client_fd, struct boothc_ticket_msg *msg)
 {
 	struct boothc_ticket_msg omsg;
 	void (*deadfn) (int ci);
@@ -795,7 +795,7 @@ int notify_client(struct ticket_config *tk, int client_fd,
 	tk_log_debug("notifying client %d (request %s)",
 		client_fd, state_to_string(cmd));
 	init_ticket_msg(&omsg, CL_RESULT, 0, rv, 0, tk);
-	rc = send_client_msg(client_fd, &omsg);
+	rc = send_client_msg(conf_ptr, client_fd, &omsg);
 
 	if (rc == 0 && ((rv == RLT_MORE) ||
 			(rv == RLT_CIB_PENDING && (options & OPT_WAIT_COMMIT)))) {
@@ -873,12 +873,12 @@ int leader_update_ticket(struct booth_config *conf_ptr,
 		case 0:
 			tk->ticket_updated = 2;
 			tk->outcome = RLT_SUCCESS;
-			foreach_tkt_req(tk, notify_client);
+			foreach_tkt_req(conf_ptr, tk, notify_client);
 			break;
 		case 1:
 			if (tk->outcome != RLT_CIB_PENDING) {
 				tk->outcome = RLT_CIB_PENDING;
-				foreach_tkt_req(tk, notify_client);
+				foreach_tkt_req(conf_ptr, tk, notify_client);
 			}
 			break;
 		default:
@@ -935,7 +935,8 @@ static void resend_msg(struct booth_config *conf_ptr,
 						state_to_string(tk->last_request),
 						site_string(n)
 						);
-				send_msg(tk->last_request, tk, n, NULL);
+				send_msg(conf_ptr, tk->last_request, tk, n,
+				         NULL);
 			}
 		}
 		ticket_activate_timeout(tk);
@@ -1004,7 +1005,7 @@ static void process_next_state(struct booth_config *conf_ptr,
 				rv = acquire_ticket(conf_ptr, tk, OR_ADMIN);
 				if (rv != 0) { /* external program failed */
 					tk->outcome = rv;
-					foreach_tkt_req(tk, notify_client);
+					foreach_tkt_req(conf_ptr, tk, notify_client);
 				}
 			}
 		} else {
@@ -1016,7 +1017,7 @@ static void process_next_state(struct booth_config *conf_ptr,
 		no_resends(tk);
 		start_revoke_ticket(conf_ptr, tk);
 		tk->outcome = RLT_SUCCESS;
-		foreach_tkt_req(tk, notify_client);
+		foreach_tkt_req(conf_ptr, tk, notify_client);
 		break;
 	/* wanting to be follower is not much of an ambition; no
 	 * processing, just return; don't reset start_postpone until
@@ -1071,7 +1072,7 @@ static void next_action(struct booth_config *conf_ptr,
 			rv = acquire_ticket(conf_ptr, tk, OR_ADMIN);
 			if (rv != 0) { /* external program failed */
 				tk->outcome = rv;
-				foreach_tkt_req(tk, notify_client);
+				foreach_tkt_req(conf_ptr, tk, notify_client);
 			}
 		} else {
 			if (tk->acks_expected) {
@@ -1108,7 +1109,8 @@ static void next_action(struct booth_config *conf_ptr,
 				rv = acquire_ticket(conf_ptr, tk, OR_ADMIN);
 				if (rv != 0) { /* external program failed */
 					tk->outcome = rv;
-					foreach_tkt_req(tk, notify_client);
+					foreach_tkt_req(conf_ptr, tk,
+					                notify_client);
 				}
 			} else {
 				/* Otherwise, just send ACKs if needed */
@@ -1217,8 +1219,6 @@ void process_tickets(struct booth_config *conf_ptr)
 	}
 }
 
-
-
 void tickets_log_info(struct booth_config *conf_ptr)
 {
 	struct ticket_config *tk;
@@ -1230,16 +1230,15 @@ void tickets_log_info(struct booth_config *conf_ptr)
 	FOREACH_TICKET(conf_ptr, i, tk) {
 		ts = wall_ts(&tk->term_expires);
 		tk_log_info("state '%s' "
-				"term %d "
-				"leader %s "
-				"expires %-24.24s",
-				state_to_string(tk->state),
-				tk->current_term,
-				ticket_leader_string(tk),
-				ctime(&ts));
+		            "term %d "
+		            "leader %s "
+		            "expires %-24.24s",
+		            state_to_string(tk->state),
+		            tk->current_term,
+		            ticket_leader_string(tk),
+		            ctime(&ts));
 	}
 }
-
 
 static void update_acks(
 		struct ticket_config *tk,
@@ -1441,9 +1440,9 @@ char *state_to_string(uint32_t state_ho)
 	return cur->c;
 }
 
-
-int send_reject(struct booth_site *dest, struct ticket_config *tk,
-		cmd_result_t code, struct boothc_ticket_msg *in_msg)
+int send_reject(struct booth_config *conf_ptr, struct booth_site *dest,
+                struct ticket_config *tk, cmd_result_t code,
+                struct boothc_ticket_msg *in_msg)
 {
 	int req = ntohl(in_msg->header.cmd);
 	struct boothc_ticket_msg msg;
@@ -1451,15 +1450,11 @@ int send_reject(struct booth_site *dest, struct ticket_config *tk,
 	tk_log_debug("sending reject to %s",
 			site_string(dest));
 	init_ticket_msg(&msg, OP_REJECTED, req, code, 0, tk);
-	return booth_udp_send_auth(dest, &msg, sendmsglen(&msg));
+	return booth_udp_send_auth(conf_ptr, dest, &msg, sendmsglen(&msg));
 }
 
-int send_msg (
-		int cmd,
-		struct ticket_config *tk,
-		struct booth_site *dest,
-		struct boothc_ticket_msg *in_msg
-	       )
+int send_msg(struct booth_config *conf_ptr, int cmd, struct ticket_config *tk,
+             struct booth_site *dest, struct boothc_ticket_msg *in_msg)
 {
 	int req = 0;
 	struct ticket_config *valid_tk = tk;
@@ -1481,5 +1476,5 @@ int send_msg (
 		req = ntohl(in_msg->header.cmd);
 
 	init_ticket_msg(&msg, cmd, req, RLT_SUCCESS, 0, valid_tk);
-	return booth_udp_send_auth(dest, &msg, sendmsglen(&msg));
+	return booth_udp_send_auth(conf_ptr, dest, &msg, sendmsglen(&msg));
 }
