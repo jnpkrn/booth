@@ -447,7 +447,7 @@ static void process_connection(struct booth_config *conf_ptr, int ci)
 	}
 
 	header = (struct boothc_header *)msg;
-	if (check_auth(NULL, msg, ntohl(header->length))) {
+	if (check_auth(conf_ptr, NULL, msg, ntohl(header->length))) {
 		errc = RLT_AUTH;
 		goto send_err;
 	}
@@ -683,11 +683,9 @@ static int add_hmac(struct booth_config *conf_ptr, void *data, int len)
 #if HAVE_LIBGCRYPT || HAVE_LIBMHASH
 	int payload_len;
 	struct hmac *hp;
-#endif
 
 	assert(conf_ptr != NULL);
 
-#if HAVE_LIBGCRYPT || HAVE_LIBMHASH
 	if (!is_auth_req())
 		return 0;
 
@@ -728,7 +726,8 @@ static int booth_tcp_recv(struct booth_site *from, void *buf, int len)
 	return got;
 }
 
-static int booth_tcp_recv_auth(struct booth_site *from, void *buf, int len)
+static int booth_tcp_recv_auth(struct booth_config *conf_ptr,
+                               struct booth_site *from, void *buf, int len)
 {
 	int got, total;
 	int payload_len;
@@ -742,7 +741,8 @@ static int booth_tcp_recv_auth(struct booth_site *from, void *buf, int len)
 	total = got;
 	if (is_auth_req()) {
 		got = booth_tcp_recv(from, (unsigned char *)buf+payload_len, sizeof(struct hmac));
-		if (got != sizeof(struct hmac) || check_auth(from, buf, len)) {
+		if (got != sizeof(struct hmac)
+				|| check_auth(conf_ptr, from, buf, len)) {
 			return -1;
 		}
 		total += got;
@@ -1001,14 +1001,17 @@ const struct booth_transport booth_transport[TRANSPORT_ENTRIES] = {
 /* verify the validity of timestamp from the header
  * the timestamp needs to be either greater than the one already
  * recorded for the site or, and this is checked for clients,
- * not to be older than booth_conf->maxtimeskew
+ * not to be older than conf_ptr->maxtimeskew
  * update the timestamp for the site, if this packet is from a
  * site
  */
-static int verify_ts(struct booth_site *from, void *buf, int len)
+static int verify_ts(struct booth_config *conf_ptr, struct booth_site *from,
+                     void *buf, int len)
 {
 	struct boothc_header *h;
 	struct timeval tv, curr_tv, now;
+
+	assert(conf_ptr != NULL);
 
 	if (len < sizeof(*h)) {
 		log_error("%s: packet too short", peer_string(from));
@@ -1028,11 +1031,11 @@ static int verify_ts(struct booth_site *from, void *buf, int len)
 	}
 
 	gettimeofday(&now, NULL);
-	now.tv_sec -= booth_conf->maxtimeskew;
+	now.tv_sec -= conf_ptr->maxtimeskew;
 	if (timercmp(&tv, &now, >))
 		goto accept;
 	log_error("%s: packet timestamp older than %d seconds",
-		peer_string(from), booth_conf->maxtimeskew);
+	          peer_string(from), conf_ptr->maxtimeskew);
 	return -1;
 
 accept:
@@ -1044,7 +1047,8 @@ accept:
 }
 #endif
 
-int check_auth(struct booth_site *from, void *buf, int len)
+int check_auth(struct booth_config *conf_ptr, struct booth_site *from,
+               void *buf, int len)
 {
 	int rv = 0;
 #if HAVE_LIBGCRYPT || HAVE_LIBMHASH
@@ -1054,6 +1058,8 @@ int check_auth(struct booth_site *from, void *buf, int len)
 	if (!is_auth_req())
 		return 0;
 
+	assert(conf_ptr != NULL);
+
 	payload_len = len - sizeof(struct hmac);
 	if (payload_len < 0) {
 		log_error("%s: failed to authenticate, packet too short (size:%d)",
@@ -1062,9 +1068,9 @@ int check_auth(struct booth_site *from, void *buf, int len)
 	}
 	hp = (struct hmac *)((unsigned char *)buf + payload_len);
 	rv = verify_hmac(buf, payload_len, ntohl(hp->hid), hp->hash,
-		booth_conf->authkey, booth_conf->authkey_len);
+	                 conf_ptr->authkey, conf_ptr->authkey_len);
 	if (!rv) {
-		rv = verify_ts(from, buf, len);
+		rv = verify_ts(conf_ptr, from, buf, len);
 	}
 	if (rv != 0) {
 		log_error("%s: failed to authenticate", peer_string(from));
@@ -1123,7 +1129,7 @@ int message_recv(struct booth_config *conf_ptr, void *msg, int msglen)
 		return -1;
 	}
 
-	if (check_auth(source, msg, msglen)) {
+	if (check_auth(conf_ptr, source, msg, msglen)) {
 		log_error("%s failed to authenticate", site_string(source));
 		source->sec_cnt++;
 		return -1;

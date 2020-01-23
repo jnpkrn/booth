@@ -50,7 +50,7 @@ struct booth_transport {
 	int (*send) (struct booth_config *, struct booth_site *, void *, int);
 	int (*send_auth) (struct booth_config *, struct booth_site *, void *, int);
 	int (*recv) (struct booth_site *, void *, int);
-	int (*recv_auth) (struct booth_site *, void *, int);
+	int (*recv_auth) (struct booth_config *, struct booth_site *, void *, int);
 	int (*broadcast) (void *, int);
 	int (*broadcast_auth) (struct booth_config *, void *, int);
 	int (*close) (struct booth_site *);
@@ -141,6 +141,18 @@ int send_header_plus(struct booth_config *conf_ptr, int fd,
 
 #define send_client_msg(bc, fd, msg) send_data(bc, fd, msg, sendmsglen(msg))
 
-int check_auth(struct booth_site *from, void *buf, int len);
+/**
+ * @internal
+ * First stage of incoming datagram handling (authentication)
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] from site structure of the sender
+ * @param[in] buf message to check
+ * @param[in] len lengh of @buf
+ *
+ * @return see #send_data and #do_write
+ */
+int check_auth(struct booth_config *conf_ptr, struct booth_site *from,
+               void *buf, int len);
 
 #endif /* _TRANSPORT_H */
