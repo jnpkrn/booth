@@ -1420,6 +1420,11 @@ static void sig_exit_handler(int sig)
 	exit(0);
 }
 
+static void wait_child_adaptor(int sig)
+{
+	wait_child(booth_conf);
+}
+
 static int do_server(struct booth_config **conf_pptr, int type)
 {
 	int rv = -1;
@@ -1490,7 +1495,7 @@ static int do_server(struct booth_config **conf_pptr, int type)
 	}
 #endif
 
-	signal(SIGCHLD, (__sighandler_t)wait_child);
+	signal(SIGCHLD, (__sighandler_t) wait_child_adaptor);
 	rv = loop(lock_fd);
 
 	return rv;

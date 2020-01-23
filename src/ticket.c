@@ -274,7 +274,7 @@ static int do_ext_prog(struct booth_config *conf_ptr,
 
 	switch(tk_test.progstate) {
 	case EXTPROG_IDLE:
-		rv = run_handler(tk);
+		rv = run_handler(conf_ptr, tk);
 		if (rv == RUNCMD_ERR) {
 			tk_log_warn("couldn't run external test, not allowed to acquire ticket");
 			ext_prog_failed(conf_ptr, tk, start_election);
