@@ -207,23 +207,26 @@ int find_client_by_fd(int fd)
 	return -1;
 }
 
-static int format_peers(char **pdata, unsigned int *len)
+static int format_peers(struct booth_config *conf_ptr,
+                        char **pdata, unsigned int *len)
 {
 	struct booth_site *s;
 	char *data, *cp;
 	char time_str[64];
 	int i, alloc;
 
+	assert(conf_ptr != NULL);
+
 	*pdata = NULL;
 	*len = 0;
 
-	alloc = booth_conf->site_count * (BOOTH_NAME_LEN + 256);
+	alloc = conf_ptr->site_count * (BOOTH_NAME_LEN + 256);
 	data = malloc(alloc);
 	if (!data)
 		return -ENOMEM;
 
 	cp = data;
-	FOREACH_NODE(booth_conf, i, s) {
+	FOREACH_NODE(conf_ptr, i, s) {
 		if (s == local)
 			continue;
 		strftime(time_str, sizeof(time_str), "%F %T",
@@ -265,7 +268,7 @@ void list_peers(struct booth_config *conf_ptr, int fd)
 	unsigned int olen;
 	struct boothc_hdr_msg hdr;
 
-	if (format_peers(&data, &olen) < 0)
+	if (format_peers(conf_ptr, &data, &olen) < 0)
 		goto out;
 
 	init_header(conf_ptr, &hdr.header, CL_LIST, 0, 0, RLT_SUCCESS,
@@ -279,72 +282,79 @@ out:
 
 /* trim trailing spaces if the key is ascii
  */
-static void trim_key()
+static void trim_key(struct booth_config *conf_ptr)
 {
 	char *p;
 	int i;
 
-	for (i=0, p=booth_conf->authkey; i < booth_conf->authkey_len; i++, p++)
+	assert(conf_ptr != NULL);
+
+	for (i = 0, p = conf_ptr->authkey; i < conf_ptr->authkey_len; i++, p++)
 		if (!isascii(*p))
 			return;
 
-	p = booth_conf->authkey;
-	while (booth_conf->authkey_len > 0 && isspace(*p)) {
+	p = conf_ptr->authkey;
+	while (conf_ptr->authkey_len > 0 && isspace(*p)) {
 		p++;
-		booth_conf->authkey_len--;
+		conf_ptr->authkey_len--;
 	}
-	memmove(booth_conf->authkey, p, booth_conf->authkey_len);
+	memmove(conf_ptr->authkey, p, conf_ptr->authkey_len);
 
-	p = booth_conf->authkey + booth_conf->authkey_len - 1;
-	while (booth_conf->authkey_len > 0 && isspace(*p)) {
-		booth_conf->authkey_len--;
+	p = conf_ptr->authkey + conf_ptr->authkey_len - 1;
+	while (conf_ptr->authkey_len > 0 && isspace(*p)) {
+		conf_ptr->authkey_len--;
 		p--;
 	}
 }
 
-static int read_authkey()
+static int read_authkey(struct booth_config *conf_ptr)
 {
 	int fd;
 
-	booth_conf->authkey[0] = '\0';
-	fd = open(booth_conf->authfile, O_RDONLY);
+	assert(conf_ptr != NULL);
+
+	conf_ptr->authkey[0] = '\0';
+	fd = open(conf_ptr->authfile, O_RDONLY);
 	if (fd < 0) {
 		log_error("cannot open %s: %s",
-			booth_conf->authfile, strerror(errno));
+			conf_ptr->authfile, strerror(errno));
 		return -1;
 	}
-	if (fstat(fd, &booth_conf->authstat) < 0) {
+	if (fstat(fd, &conf_ptr->authstat) < 0) {
 		log_error("cannot stat authentication file %s (%d): %s",
-			booth_conf->authfile, fd, strerror(errno));
+			conf_ptr->authfile, fd, strerror(errno));
 		close(fd);
 		return -1;
 	}
-	if (booth_conf->authstat.st_mode & (S_IRGRP | S_IROTH)) {
+	if (conf_ptr->authstat.st_mode & (S_IRGRP | S_IROTH)) {
 		log_error("%s: file shall not be readable for anyone but the owner",
-			booth_conf->authfile);
+			conf_ptr->authfile);
 		close(fd);
 		return -1;
 	}
-	booth_conf->authkey_len = read(fd, booth_conf->authkey, BOOTH_MAX_KEY_LEN);
+	conf_ptr->authkey_len = read(fd, conf_ptr->authkey, BOOTH_MAX_KEY_LEN);
 	close(fd);
-	trim_key();
+	trim_key(conf_ptr);
 	log_debug("read key of size %d in authfile %s",
-		booth_conf->authkey_len, booth_conf->authfile);
+		conf_ptr->authkey_len, conf_ptr->authfile);
 	/* make sure that the key is of minimum length */
-	return (booth_conf->authkey_len >= BOOTH_MIN_KEY_LEN) ? 0 : -1;
+	return (conf_ptr->authkey_len >= BOOTH_MIN_KEY_LEN) ? 0 : -1;
 }
 
-int update_authkey()
+/* XXX UNUSED */
+int update_authkey(struct booth_config *conf_ptr)
 {
 	struct stat statbuf;
 
-	if (stat(booth_conf->authfile, &statbuf) < 0) {
+	assert(conf_ptr != NULL);
+
+	if (stat(conf_ptr->authfile, &statbuf) < 0) {
 		log_error("cannot stat authentication file %s: %s",
-			booth_conf->authfile, strerror(errno));
+			conf_ptr->authfile, strerror(errno));
 		return -1;
 	}
-	if (statbuf.st_mtime > booth_conf->authstat.st_mtime) {
-		return read_authkey();
+	if (statbuf.st_mtime > conf_ptr->authstat.st_mtime) {
+		return read_authkey(conf_ptr);
 	}
 	return 0;
 }
@@ -359,8 +369,8 @@ static int setup_config(struct booth_config **conf_pptr, int type)
 	if (rv < 0)
 		goto out;
 
-	if (is_auth_req(booth_conf)) {
-		rv = read_authkey();
+	if (is_auth_req(*conf_pptr)) {
+		rv = read_authkey(*conf_pptr);
 		if (rv < 0)
 			goto out;
 #if HAVE_LIBGCRYPT
@@ -376,18 +386,18 @@ static int setup_config(struct booth_config **conf_pptr, int type)
 
 	/* Set "local" pointer, ignoring errors. */
 	if (cl.type == DAEMON && cl.site[0]) {
-		if (!find_site_by_name(booth_conf, cl.site, &local, 1)) {
+		if (!find_site_by_name(*conf_pptr, cl.site, &local, 1)) {
 			log_error("Cannot find \"%s\" in the configuration.",
 					cl.site);
 			return -EINVAL;
 		}
 		local->local = 1;
 	} else
-		find_myself(booth_conf, NULL,
+		find_myself(*conf_pptr, NULL,
 		            type == CLIENT || type == GEOSTORE);
 
 
-	rv = check_config(booth_conf, type);
+	rv = check_config(*conf_pptr, type);
 	if (rv < 0)
 		goto out;
 
@@ -424,7 +434,7 @@ out:
 }
 
 
-static int write_daemon_state(int fd, int state)
+static int write_daemon_state(struct booth_config *conf_ptr, int fd, int state)
 {
 	char buffer[1024];
 	int rv, size;
@@ -441,7 +451,7 @@ static int write_daemon_state(int fd, int state)
 	              getpid(),
 	              ( state == BOOTHD_STARTED  ? "started"  :
 	                  state == BOOTHD_STARTING ? "starting" : "invalid"),
-	              type_to_string(local->type), booth_conf->name,
+	              type_to_string(local->type), conf_ptr->name,
 	              get_local_id(), site_string(local),
 	              site_port(local));
 
@@ -481,7 +491,7 @@ static int write_daemon_state(int fd, int state)
 	return 0;
 }
 
-static int loop(int fd)
+static int loop(struct booth_config *conf_ptr, int fd)
 {
 	void (*workfn) (struct booth_config *conf_ptr, int ci);
 	void (*deadfn) (int ci);
@@ -491,11 +501,11 @@ static int loop(int fd)
 	if (rv < 0)
 		goto fail;
 
-	rv = setup_ticket(booth_conf);
+	rv = setup_ticket(conf_ptr);
 	if (rv < 0)
 		goto fail;
 
-	rv = write_daemon_state(fd, BOOTHD_STARTED);
+	rv = write_daemon_state(conf_ptr, fd, BOOTHD_STARTED);
 	if (rv != 0) {
 		log_error("write daemon state %d to lockfile error %s: %s",
                       BOOTHD_STARTED, cl.lockfile, strerror(errno));
@@ -522,7 +532,7 @@ static int loop(int fd)
 			if (pollfds[i].revents & POLLIN) {
 				workfn = clients[i].workfn;
 				if (workfn)
-					workfn(booth_conf, i);
+					workfn(conf_ptr, i);
 			}
 			if (pollfds[i].revents &
 					(POLLERR | POLLHUP | POLLNVAL)) {
@@ -532,7 +542,7 @@ static int loop(int fd)
 			}
 		}
 
-		process_tickets(booth_conf);
+		process_tickets(conf_ptr);
 	}
 
 	return 0;
@@ -637,7 +647,8 @@ static int test_reply(cmd_result_t reply_code, cmd_request_t cmd)
 	return rv;
 }
 
-static int query_get_string_answer(cmd_request_t cmd)
+static int query_get_string_answer(struct booth_config *conf_ptr,
+                                   cmd_request_t cmd)
 {
 	struct booth_site *site;
 	struct boothc_hdr_msg reply;
@@ -662,11 +673,11 @@ static int query_get_string_answer(cmd_request_t cmd)
 	header = (struct boothc_header *)request;
 	data = NULL;
 
-	init_header(booth_conf, header, cmd, 0, cl.options, 0, 0, msg_size);
+	init_header(conf_ptr, header, cmd, 0, cl.options, 0, 0, msg_size);
 
 	if (!*cl.site)
 		site = local;
-	else if (!find_site_by_name(booth_conf, cl.site, &site, 1)) {
+	else if (!find_site_by_name(conf_ptr, cl.site, &site, 1)) {
 		log_error("cannot find site \"%s\"", cl.site);
 		rv = ENOENT;
 		goto out;
@@ -677,11 +688,11 @@ static int query_get_string_answer(cmd_request_t cmd)
 	if (rv < 0)
 		goto out_close;
 
-	rv = tpt->send(booth_conf, site, request, msg_size);
+	rv = tpt->send(conf_ptr, site, request, msg_size);
 	if (rv < 0)
 		goto out_close;
 
-	rv = tpt->recv_auth(booth_conf, site, &reply, sizeof(reply));
+	rv = tpt->recv_auth(conf_ptr, site, &reply, sizeof(reply));
 	if (rv < 0)
 		goto out_close;
 
@@ -718,7 +729,8 @@ out:
 }
 
 
-static int do_command(cmd_request_t cmd)
+static int do_command(struct booth_config *conf_ptr,
+                      cmd_request_t cmd)
 {
 	struct booth_site *site;
 	struct boothc_ticket_msg reply;
@@ -742,7 +754,7 @@ static int do_command(cmd_request_t cmd)
 	if (!*cl.site)
 		site = local;
 	else {
-		if (!find_site_by_name(booth_conf, cl.site, &site, 1)) {
+		if (!find_site_by_name(conf_ptr, cl.site, &site, 1)) {
 			log_error("Site \"%s\" not configured.", cl.site);
 			goto out_close;
 		}
@@ -764,8 +776,8 @@ static int do_command(cmd_request_t cmd)
 	 * Although, that means that the UDP port has to be specified, too. */
 	if (!cl.msg.ticket.id[0]) {
 		/* If the loaded configuration has only a single ticket defined, use that. */
-		if (booth_conf->ticket_count == 1) {
-			strncpy(cl.msg.ticket.id, booth_conf->ticket[0].name,
+		if (conf_ptr->ticket_count == 1) {
+			strncpy(cl.msg.ticket.id, conf_ptr->ticket[0].name,
 				sizeof(cl.msg.ticket.id));
 		} else {
 			log_error("No ticket given.");
@@ -774,18 +786,18 @@ static int do_command(cmd_request_t cmd)
 	}
 
 redirect:
-	init_header(booth_conf, &cl.msg.header, cmd, 0, cl.options, 0, 0, sizeof(cl.msg));
+	init_header(conf_ptr, &cl.msg.header, cmd, 0, cl.options, 0, 0, sizeof(cl.msg));
 
 	rv = tpt->open(site);
 	if (rv < 0)
 		goto out_close;
 
-	rv = tpt->send(booth_conf, site, &cl.msg, sendmsglen(&cl.msg));
+	rv = tpt->send(conf_ptr, site, &cl.msg, sendmsglen(&cl.msg));
 	if (rv < 0)
 		goto out_close;
 
 read_more:
-	rv = tpt->recv_auth(booth_conf, site, &reply, sizeof(reply));
+	rv = tpt->recv_auth(conf_ptr, site, &reply, sizeof(reply));
 	if (rv < 0) {
 		/* print any errors depending on the code sent by the
 		 * server */
@@ -797,7 +809,7 @@ read_more:
 	if (rv == 1) {
 		tpt->close(site);
 		leader_id = ntohl(reply.ticket.leader);
-		if (!find_site_by_id(booth_conf, leader_id, &site)) {
+		if (!find_site_by_id(conf_ptr, leader_id, &site)) {
 			log_error("Message with unknown redirect site %x received", leader_id);
 			rv = -1;
 			goto out_close;
@@ -882,7 +894,7 @@ static inline int is_root(void)
 }
 
 
-static int create_lockfile(void)
+static int create_lockfile(struct booth_config *conf_ptr)
 {
 	int rv, fd;
 
@@ -901,7 +913,7 @@ static int create_lockfile(void)
 		goto fail;
 	}
 
-	rv = write_daemon_state(fd, BOOTHD_STARTING);
+	rv = write_daemon_state(conf_ptr, fd, BOOTHD_STARTING);
 	if (rv != 0) {
 		log_error("write daemon state %d to lockfile error %s: %s",
 				BOOTHD_STARTING, cl.lockfile, strerror(errno));
@@ -909,7 +921,7 @@ static int create_lockfile(void)
 	}
 
 	if (is_root()) {
-		if (fchown(fd, booth_conf->uid, booth_conf->gid) < 0)
+		if (fchown(fd, conf_ptr->uid, conf_ptr->gid) < 0)
 			log_error("fchown() on lockfile said %d: %s",
 					errno, strerror(errno));
 	}
@@ -1377,19 +1389,19 @@ quit:
 }
 
 
-static int limit_this_process(void)
+static int limit_this_process(struct booth_config *conf_ptr)
 {
 	int rv;
 	if (!is_root())
 		return 0;
 
-	if (setregid(booth_conf->gid, booth_conf->gid) < 0) {
+	if (setregid(conf_ptr->gid, conf_ptr->gid) < 0) {
 		rv = errno;
 		log_error("setregid() didn't work: %s", strerror(rv));
 		return rv;
 	}
 
-	if (setreuid(booth_conf->uid, booth_conf->uid) < 0) {
+	if (setreuid(conf_ptr->uid, conf_ptr->uid) < 0) {
 		rv = errno;
 		log_error("setreuid() didn't work: %s", strerror(rv));
 		return rv;
@@ -1450,7 +1462,7 @@ static int do_server(struct booth_config **conf_pptr, int type)
 
 	/* The lockfile must be written to _after_ the call to daemon(), so
 	 * that the lockfile contains the pid of the daemon, not the parent. */
-	lock_fd = create_lockfile();
+	lock_fd = create_lockfile(*conf_pptr);
 	if (lock_fd < 0)
 		return lock_fd;
 
@@ -1479,7 +1491,7 @@ static int do_server(struct booth_config **conf_pptr, int type)
 	               DAEMON_NAME, cl.configfile, type_to_string(local->type),
 	               site_string(local), site_port(local));
 
-	rv = limit_this_process();
+	rv = limit_this_process(*conf_pptr);
 	if (rv)
 		return rv;
 
@@ -1496,7 +1508,7 @@ static int do_server(struct booth_config **conf_pptr, int type)
 #endif
 
 	signal(SIGCHLD, (__sighandler_t) wait_child_adaptor);
-	rv = loop(lock_fd);
+	rv = loop(*conf_pptr, lock_fd);
 
 	return rv;
 }
@@ -1514,12 +1526,12 @@ static int do_client(struct booth_config **conf_pptr)
 	switch (cl.op) {
 	case CMD_LIST:
 	case CMD_PEERS:
-		rv = query_get_string_answer(cl.op);
+		rv = query_get_string_answer(*conf_pptr, cl.op);
 		break;
 
 	case CMD_GRANT:
 	case CMD_REVOKE:
-		rv = do_command(cl.op);
+		rv = do_command(*conf_pptr, cl.op);
 		break;
 	}
 
@@ -1558,12 +1570,12 @@ static int do_attr(struct booth_config **conf_pptr)
 	switch (cl.op) {
 	case ATTR_LIST:
 	case ATTR_GET:
-		rv = query_get_string_answer(cl.op);
+		rv = query_get_string_answer(*conf_pptr, cl.op);
 		break;
 
 	case ATTR_SET:
 	case ATTR_DEL:
-		rv = do_attr_command(booth_conf, cl.op);
+		rv = do_attr_command((*conf_pptr), cl.op);
 		break;
 	}
 

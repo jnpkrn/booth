@@ -362,7 +362,18 @@ int client_add(int fd, const struct booth_transport *tpt,
 
 int find_client_by_fd(int fd);
 void safe_copy(char *dest, char *value, size_t buflen, const char *description);
-int update_authkey(void);
+
+/**
+ * @internal
+ * Re-read and reflect possibly new contents of the authentication key file
+ *
+ * @note XXX UNUSED
+ *
+ * @param[inout] conf_ptr config object to refer to
+ *
+ * @return 0 in case of success, -1 otherwise
+ */
+int update_authkey(struct booth_config *conf_ptr);
 
 /**
  * @internal
