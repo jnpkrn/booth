@@ -155,7 +155,7 @@ static void client_dead(int ci)
 }
 
 int client_add(int fd, const struct booth_transport *tpt,
-		void (*workfn)(int ci),
+		void (*workfn)(struct booth_config *conf_ptr, int ci),
 		void (*deadfn)(int ci))
 {
 	int i;
@@ -223,7 +223,7 @@ static int format_peers(char **pdata, unsigned int *len)
 		return -ENOMEM;
 
 	cp = data;
-	FOREACH_NODE(i, s) {
+	FOREACH_NODE(booth_conf, i, s) {
 		if (s == local)
 			continue;
 		strftime(time_str, sizeof(time_str), "%F %T",
@@ -483,7 +483,7 @@ static int write_daemon_state(int fd, int state)
 
 static int loop(int fd)
 {
-	void (*workfn) (int ci);
+	void (*workfn) (struct booth_config *conf_ptr, int ci);
 	void (*deadfn) (int ci);
 	int rv, i;
 
@@ -522,7 +522,7 @@ static int loop(int fd)
 			if (pollfds[i].revents & POLLIN) {
 				workfn = clients[i].workfn;
 				if (workfn)
-					workfn(i);
+					workfn(booth_conf, i);
 			}
 			if (pollfds[i].revents &
 					(POLLERR | POLLHUP | POLLNVAL)) {
@@ -532,7 +532,7 @@ static int loop(int fd)
 			}
 		}
 
-		process_tickets();
+		process_tickets(booth_conf);
 	}
 
 	return 0;

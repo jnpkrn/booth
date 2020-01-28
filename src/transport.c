@@ -97,8 +97,7 @@ static int find_address(struct booth_config *conf_ptr,
 	/* One bit left to check means ignore 7 lowest bits. */
 	mask = ~( (1 << (8 - bits_left)) -1);
 
-	for (i = 0; i < conf_ptr->site_count; i++) {
-		node = conf_ptr->site + i;
+	FOREACH_NODE(conf_ptr, i, node) {
 		if (family != node->family)
 			continue;
 		n_a = node_to_addr_pointer(node);
@@ -427,7 +426,7 @@ int read_client(struct client *req_cl)
 
 
 /* Only used for client requests (tcp) */
-static void process_connection(int ci)
+static void process_connection(struct booth_config *conf_ptr, int ci)
 {
 	struct client *req_cl;
 	void *msg = NULL;
@@ -458,7 +457,7 @@ static void process_connection(int ci)
 	 * result a second later? */
 	switch (ntohl(header->cmd)) {
 	case CMD_LIST:
-		ticket_answer_list(req_cl->fd);
+		ticket_answer_list(conf_ptr, req_cl->fd);
 		goto kill;
 	case CMD_PEERS:
 		list_peers(req_cl->fd);
@@ -466,7 +465,7 @@ static void process_connection(int ci)
 
 	case CMD_GRANT:
 	case CMD_REVOKE:
-		if (process_client_request(req_cl, msg) == 1)
+		if (process_client_request(conf_ptr, req_cl, msg) == 1)
 			goto kill; /* request processed definitely, close connection */
 		else
 			return;
@@ -503,7 +502,7 @@ kill:
 }
 
 
-static void process_tcp_listener(int ci)
+static void process_tcp_listener(struct booth_config *conf_ptr, int ci)
 {
 	int fd, i, flags, one = 1;
 	socklen_t addrlen = sizeof(struct sockaddr);
@@ -788,7 +787,7 @@ ex:
 
 
 /* Receive/process callback for UDP */
-static void process_recv(int ci)
+static void process_recv(struct booth_config *conf_ptr, int ci)
 {
 	struct sockaddr_storage sa;
 	int rv;
@@ -871,13 +870,13 @@ int booth_udp_send_auth(struct booth_site *to, void *buf, int len)
 	return booth_udp_send(to, buf, len);
 }
 
-static int booth_udp_broadcast_auth(void *buf, int len)
+static int booth_udp_broadcast_auth(struct booth_config *conf_ptr,
+                                    void *buf, int len)
 {
 	int i, rv, rvs;
 	struct booth_site *site;
 
-
-	if (!booth_conf || !booth_conf->site_count)
+	if (conf_ptr == NULL || !conf_ptr->site_count)
 		return -1;
 
 	rv = add_hmac(buf, len);
@@ -885,7 +884,7 @@ static int booth_udp_broadcast_auth(void *buf, int len)
 		return rv;
 
 	rvs = 0;
-	FOREACH_NODE(i, site) {
+	FOREACH_NODE(conf_ptr, i, site) {
 		if (site != local) {
 			rv = booth_udp_send(site, buf, len);
 			if (!rvs)

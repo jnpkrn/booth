@@ -28,6 +28,7 @@
 #include <glib.h>
 #include "timer.h"
 
+struct booth_config;
 
 #define BOOTH_RUN_DIR "/var/run/booth/"
 #define BOOTH_LOG_DIR "/var/log"
@@ -337,16 +338,28 @@ struct client {
 	const struct booth_transport *transport;
 	struct boothc_ticket_msg *msg;
 	int offset; /* bytes read so far into msg */
-	void (*workfn)(int);
+	void (*workfn)(struct booth_config *conf_ptr, int);
 	void (*deadfn)(int);
 };
 
 extern struct client *clients;
 extern struct pollfd *pollfds;
 
-
+/**
+ * @internal
+ * For an established-connection socket, finalize the handling callbacks
+ *
+ * @param[in] file descriptor of the respective client socket
+ * @param[inout] tpt precooked transport handling callbacks to finalize
+ * @param[in] workfn callback to process incoming messages
+ * @param[in] workfn callback to handle termination of the connection
+ *
+ * @return number of clients tracked (incl. this one)
+ */
 int client_add(int fd, const struct booth_transport *tpt,
-		void (*workfn)(int ci), void (*deadfn)(int ci));
+               void (*workfn)(struct booth_config *conf_ptr, int ci),
+               void (*deadfn)(int ci));
+
 int find_client_by_fd(int fd);
 void safe_copy(char *dest, char *value, size_t buflen, const char *description);
 int update_authkey(void);

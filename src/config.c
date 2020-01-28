@@ -953,8 +953,7 @@ static int get_other_site(struct booth_config *conf_ptr,
 	if (conf_ptr == NULL)
 		return 0;
 
-	for (i = 0; i < conf_ptr->site_count; i++) {
-		n = conf_ptr->site + i;
+	FOREACH_NODE(conf_ptr, i, n) {
 		if (n != local && n->type == SITE) {
 			if (!*node) {
 				*node = n;
@@ -979,8 +978,7 @@ int find_site_by_name(struct booth_config *conf_ptr, const char *site,
 	if (!strcmp(site, OTHER_SITE))
 		return get_other_site(conf_ptr, node);
 
-	for (i = 0; i < conf_ptr->site_count; i++) {
-		n = conf_ptr->site + i;
+	FOREACH_NODE(conf_ptr, i, n) {
 		if ((n->type == SITE || any_type) &&
 		    strncmp(n->addr_string, site, sizeof(n->addr_string)) == 0) {
 			*node = n;
@@ -1005,8 +1003,7 @@ int find_site_by_id(struct booth_config *conf_ptr, uint32_t site_id,
 	if (conf_ptr == NULL)
 		return 0;
 
-	for (i = 0; i < conf_ptr->site_count; i++) {
-		n = conf_ptr->site + i;
+	FOREACH_NODE(conf_ptr, i, n) {
 		if (n->site_id == site_id) {
 			*node = n;
 			return 1;

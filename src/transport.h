@@ -52,7 +52,7 @@ struct booth_transport {
 	int (*recv) (struct booth_site *, void *, int);
 	int (*recv_auth) (struct booth_site *, void *, int);
 	int (*broadcast) (void *, int);
-	int (*broadcast_auth) (void *, int);
+	int (*broadcast_auth) (struct booth_config *, void *, int);
 	int (*close) (struct booth_site *);
 	int (*exit) (void);
 };

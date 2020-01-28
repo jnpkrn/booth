@@ -22,11 +22,12 @@
 
 #include <stdint.h>
 #include <sys/stat.h>
+
+struct booth_config;
+
 #include "booth.h"
 #include "timer.h"
 #include "raft.h"
-
-struct booth_config;
 #include "transport.h"
 
 
