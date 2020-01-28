@@ -884,7 +884,7 @@ static int booth_udp_broadcast_auth(void *buf, int len)
 		return rv;
 
 	rvs = 0;
-	foreach_node(i, site) {
+	FOREACH_NODE(i, site) {
 		if (site != local) {
 			rv = booth_udp_send(site, buf, len);
 			if (!rvs)
