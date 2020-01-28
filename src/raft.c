@@ -159,14 +159,16 @@ static void won_elections(struct booth_config *conf_ptr,
 /* if more than one member got the same (and maximum within that
  * election) number of votes, then that is a tie
  */
-static int is_tie(struct ticket_config *tk)
+static int is_tie(struct booth_config *conf_ptr, struct ticket_config *tk)
 {
+	struct booth_site *v, *ignored __attribute__((unused));
 	int i;
-	struct booth_site *v;
 	int count[MAX_NODES] = { 0, };
 	int max_votes = 0, max_cnt = 0;
 
-	for (i = 0; i < booth_conf->site_count; i++) {
+	assert(conf_ptr != NULL);
+
+	FOREACH_NODE(conf_ptr, i, ignored) {
 		v = tk->votes_for[i];
 		if (!v)
 			continue;
@@ -174,7 +176,7 @@ static int is_tie(struct ticket_config *tk)
 		max_votes = max(max_votes, count[v->index]);
 	}
 
-	for (i = 0; i < booth_conf->site_count; i++) {
+	FOREACH_NODE(conf_ptr, i, ignored) {
 		if (count[i] == max_votes)
 			max_cnt++;
 	}
@@ -182,13 +184,16 @@ static int is_tie(struct ticket_config *tk)
 	return max_cnt > 1;
 }
 
-static struct booth_site *majority_votes(struct ticket_config *tk)
+static struct booth_site *majority_votes(struct booth_config *conf_ptr,
+                                         struct ticket_config *tk)
 {
+	struct booth_site *v, *node;
 	int i, n;
-	struct booth_site *v;
 	int count[MAX_NODES] = { 0, };
 
-	for (i = 0; i < booth_conf->site_count; i++) {
+	assert(conf_ptr != NULL);
+
+	FOREACH_NODE(conf_ptr, i, node) {
 		v = tk->votes_for[i];
 		if (!v || v == no_leader)
 			continue;
@@ -196,17 +201,14 @@ static struct booth_site *majority_votes(struct ticket_config *tk)
 		n = v->index;
 		count[n]++;
 		tk_log_debug("Majority: %d %s wants %d %s => %d",
-				i, site_string(&booth_conf->site[i]),
-				n, site_string(v),
-				count[n]);
+		             i, site_string(node), n, site_string(v), count[n]);
 
-		if (count[n]*2 <= booth_conf->site_count)
+		if (count[n]*2 <= conf_ptr->site_count)
 			continue;
 
 
 		tk_log_debug("Majority reached: %d of %d for %s",
-				count[n], booth_conf->site_count,
-				site_string(v));
+		              count[n], conf_ptr->site_count, site_string(v));
 		return v;
 	}
 
@@ -225,7 +227,7 @@ void elections_end(struct booth_config *conf_ptr,
 	}
 
 	tk->in_election = 0;
-	new_leader = majority_votes(tk);
+	new_leader = majority_votes(conf_ptr, tk);
 	if (new_leader == local) {
 		won_elections(conf_ptr, tk);
 		tk_log_info("granted successfully here");
@@ -237,7 +239,7 @@ void elections_end(struct booth_config *conf_ptr,
 		tk->outcome = RLT_MORE;
 		foreach_tkt_req(conf_ptr, tk, notify_client);
 		if (!new_election(conf_ptr, tk, NULL,
-		                  is_tie(tk) ? 2 : 0, OR_AGAIN)) {
+		                  is_tie(conf_ptr, tk) ? 2 : 0, OR_AGAIN)) {
 			ticket_activate_timeout(tk);
 		}
 	}
