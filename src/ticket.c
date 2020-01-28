@@ -128,7 +128,7 @@ static int ticket_dangerous(struct booth_config *conf_ptr,
 	if (!is_time_set(&tk->delay_commit))
 		return 0;
 
-	if (is_past(&tk->delay_commit) || all_sites_replied(tk)) {
+	if (is_past(&tk->delay_commit) || all_sites_replied(conf_ptr, tk)) {
 		if (tk->leader == local) {
 			tk_log_info("%s, committing to CIB",
 				is_past(&tk->delay_commit) ?
@@ -702,7 +702,8 @@ int ticket_answer_list(struct booth_config *conf_ptr, int fd)
 	if (rv < 0)
 		goto out;
 
-	init_header(&hdr.header, CL_LIST, 0, 0, RLT_SUCCESS, 0, sizeof(hdr) + olen);
+	init_header(conf_ptr, &hdr.header, CL_LIST, 0, 0, RLT_SUCCESS, 0,
+	            sizeof(hdr) + olen);
 	rv = send_header_plus(conf_ptr, fd, &hdr, data, olen);
 
 out:
@@ -769,7 +770,7 @@ int process_client_request(struct booth_config *conf_ptr,
 	}
 
 reply_now:
-	init_ticket_msg(&omsg, CL_RESULT, 0, rv, 0, tk);
+	init_ticket_msg(conf_ptr, &omsg, CL_RESULT, 0, rv, 0, tk);
 	send_client_msg(conf_ptr, req_client->fd, &omsg);
 	return rc;
 }
@@ -794,7 +795,7 @@ int notify_client(struct booth_config *conf_ptr, struct ticket_config *tk,
 	}
 	tk_log_debug("notifying client %d (request %s)",
 		client_fd, state_to_string(cmd));
-	init_ticket_msg(&omsg, CL_RESULT, 0, rv, 0, tk);
+	init_ticket_msg(conf_ptr, &omsg, CL_RESULT, 0, rv, 0, tk);
 	rc = send_client_msg(conf_ptr, client_fd, &omsg);
 
 	if (rc == 0 && ((rv == RLT_MORE) ||
@@ -827,7 +828,7 @@ int ticket_broadcast(struct booth_config *conf_ptr,
 {
 	struct boothc_ticket_msg msg;
 
-	init_ticket_msg(&msg, cmd, 0, res, reason, tk);
+	init_ticket_msg(conf_ptr, &msg, cmd, 0, res, reason, tk);
 	tk_log_debug("broadcasting '%s' (term=%d, valid=%d)",
 			state_to_string(cmd),
 			ntohl(msg.ticket.term),
@@ -963,7 +964,7 @@ static void handle_resends(struct booth_config *conf_ptr,
 		goto just_resend;
 	}
 
-	if (!majority_of_bits(tk, tk->acks_received)) {
+	if (!majority_of_bits(conf_ptr, tk, tk->acks_received)) {
 		ack_cnt = count_bits(tk->acks_received) - 1;
 		if (!ack_cnt) {
 			tk_log_warn("no answers to our request (try #%d), "
@@ -1130,7 +1131,7 @@ static void next_action(struct booth_config *conf_ptr,
 		/* timeout or ticket renewal? */
 		if (tk->acks_expected) {
 			handle_resends(conf_ptr, tk);
-			if (majority_of_bits(tk, tk->acks_received)) {
+			if (majority_of_bits(conf_ptr, tk, tk->acks_received)) {
 				leader_update_ticket(conf_ptr, tk);
 			}
 		} else {
@@ -1240,12 +1241,10 @@ void tickets_log_info(struct booth_config *conf_ptr)
 	}
 }
 
-static void update_acks(
-		struct ticket_config *tk,
-		struct booth_site *sender,
-		struct booth_site *leader,
-		struct boothc_ticket_msg *msg
-	       )
+
+static void update_acks(struct booth_config *conf_ptr, struct ticket_config *tk,
+                        struct booth_site *sender, struct booth_site *leader,
+                        struct boothc_ticket_msg *msg)
 {
 	uint32_t cmd;
 	uint32_t req;
@@ -1260,7 +1259,7 @@ static void update_acks(
 	/* got an ack! */
 	tk->acks_received |= sender->bitmask;
 
-	if (all_replied(tk) ||
+	if (all_replied(conf_ptr, tk) ||
 			/* we just stepped down, need only one site to start
 			 * elections */
 			(cmd == OP_REQ_VOTE && tk->last_request == OP_VOTE_FOR)) {
@@ -1296,7 +1295,7 @@ int ticket_recv(struct booth_config *conf_ptr, void *buf,
 		return -EINVAL;
 	}
 
-	update_acks(tk, source, leader, msg);
+	update_acks(conf_ptr, tk, source, leader, msg);
 
 	return raft_answer(conf_ptr, tk, source, leader, msg);
 }
@@ -1440,6 +1439,7 @@ char *state_to_string(uint32_t state_ho)
 	return cur->c;
 }
 
+
 int send_reject(struct booth_config *conf_ptr, struct booth_site *dest,
                 struct ticket_config *tk, cmd_result_t code,
                 struct boothc_ticket_msg *in_msg)
@@ -1449,7 +1449,7 @@ int send_reject(struct booth_config *conf_ptr, struct booth_site *dest,
 
 	tk_log_debug("sending reject to %s",
 			site_string(dest));
-	init_ticket_msg(&msg, OP_REJECTED, req, code, 0, tk);
+	init_ticket_msg(conf_ptr, &msg, OP_REJECTED, req, code, 0, tk);
 	return booth_udp_send_auth(conf_ptr, dest, &msg, sendmsglen(&msg));
 }
 
@@ -1475,6 +1475,6 @@ int send_msg(struct booth_config *conf_ptr, int cmd, struct ticket_config *tk,
 	if (in_msg)
 		req = ntohl(in_msg->header.cmd);
 
-	init_ticket_msg(&msg, cmd, req, RLT_SUCCESS, 0, valid_tk);
+	init_ticket_msg(conf_ptr, &msg, cmd, req, RLT_SUCCESS, 0, valid_tk);
 	return booth_udp_send_auth(conf_ptr, dest, &msg, sendmsglen(&msg));
 }

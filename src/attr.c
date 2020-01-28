@@ -177,8 +177,8 @@ int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
 
 	tpt = booth_transport + TCP;
 
-	init_header(&cl.attr_msg.header, cmd, 0, cl.options, 0, 0,
-		sizeof(cl.attr_msg));
+	init_header(conf_ptr, &cl.attr_msg.header, cmd, 0, cl.options, 0, 0,
+	            sizeof(cl.attr_msg));
 
 	rv = tpt->open(site);
 	if (rv < 0)
@@ -369,8 +369,8 @@ static cmd_result_t attr_get(struct booth_config *conf_ptr,
 		return RLT_SYNC_FAIL;
 	}
 	g_string_printf(attr_val, "%s\n", a->val);
-	init_header(&hdr.header, ATTR_GET, 0, 0, RLT_SUCCESS, 0,
-		sizeof(hdr) + attr_val->len);
+	init_header(conf_ptr, &hdr.header, ATTR_GET, 0, 0, RLT_SUCCESS, 0,
+	            sizeof(hdr) + attr_val->len);
 	if (send_header_plus(conf_ptr, fd, &hdr, attr_val->str, attr_val->len))
 		rv = RLT_SYNC_FAIL;
 	if (attr_val)
@@ -397,8 +397,8 @@ static cmd_result_t attr_list(struct booth_config *conf_ptr,
 	}
 	g_hash_table_foreach(tk->attr, append_attr, data);
 
-	init_header(&hdr.header, ATTR_LIST, 0, 0, RLT_SUCCESS, 0,
-		sizeof(hdr) + data->len);
+	init_header(conf_ptr, &hdr.header, ATTR_LIST, 0, 0, RLT_SUCCESS, 0,
+	            sizeof(hdr) + data->len);
 	rv = send_header_plus(conf_ptr, fd, &hdr, data->str, data->len);
 
 	if (data)
@@ -444,7 +444,7 @@ int process_attr_request(struct booth_config *conf_ptr,
 	}
 
 reply_now:
-	init_header(&hdr.header, CL_RESULT, 0, 0, rv, 0, sizeof(hdr));
+	init_header(conf_ptr, &hdr.header, CL_RESULT, 0, 0, rv, 0, sizeof(hdr));
 	send_header_plus(conf_ptr, req_client->fd, &hdr, NULL, 0);
 	return 1;
 }

@@ -268,7 +268,8 @@ void list_peers(struct booth_config *conf_ptr, int fd)
 	if (format_peers(&data, &olen) < 0)
 		goto out;
 
-	init_header(&hdr.header, CL_LIST, 0, 0, RLT_SUCCESS, 0, sizeof(hdr) + olen);
+	init_header(conf_ptr, &hdr.header, CL_LIST, 0, 0, RLT_SUCCESS,
+	            0, sizeof(hdr) + olen);
 	(void) send_header_plus(conf_ptr, fd, &hdr, data, olen);
 
 out:
@@ -358,7 +359,7 @@ static int setup_config(struct booth_config **conf_pptr, int type)
 	if (rv < 0)
 		goto out;
 
-	if (is_auth_req()) {
+	if (is_auth_req(booth_conf)) {
 		rv = read_authkey();
 		if (rv < 0)
 			goto out;
@@ -661,7 +662,7 @@ static int query_get_string_answer(cmd_request_t cmd)
 	header = (struct boothc_header *)request;
 	data = NULL;
 
-	init_header(header, cmd, 0, cl.options, 0, 0, msg_size);
+	init_header(booth_conf, header, cmd, 0, cl.options, 0, 0, msg_size);
 
 	if (!*cl.site)
 		site = local;
@@ -773,7 +774,7 @@ static int do_command(cmd_request_t cmd)
 	}
 
 redirect:
-	init_header(&cl.msg.header, cmd, 0, cl.options, 0, 0, sizeof(cl.msg));
+	init_header(booth_conf, &cl.msg.header, cmd, 0, cl.options, 0, 0, sizeof(cl.msg));
 
 	rv = tpt->open(site);
 	if (rv < 0)

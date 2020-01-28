@@ -144,7 +144,7 @@ static void won_elections(struct booth_config *conf_ptr,
 	time_reset(&tk->election_end);
 	tk->voted_for = NULL;
 
-	if (is_time_set(&tk->delay_commit) && all_sites_replied(tk)) {
+	if (is_time_set(&tk->delay_commit) && all_sites_replied(conf_ptr, tk)) {
 		time_reset(&tk->delay_commit);
 		tk_log_debug("reset delay commit as all sites replied");
 	}
@@ -477,7 +477,7 @@ static int process_ACK(struct booth_config *conf_ptr,
 			term == tk->current_term &&
 			leader == tk->leader) {
 
-		if (majority_of_bits(tk, tk->acks_received)) {
+		if (majority_of_bits(conf_ptr, tk, tk->acks_received)) {
 			/* OK, at least half of the nodes are reachable;
 			 * Update the ticket and send update messages out
 			 */
@@ -727,7 +727,8 @@ vote_for_sender:
 	}
 
 
-	init_ticket_msg(&omsg, OP_VOTE_FOR, OP_REQ_VOTE, RLT_SUCCESS, 0, tk);
+	init_ticket_msg(conf_ptr, &omsg, OP_VOTE_FOR, OP_REQ_VOTE,
+	                RLT_SUCCESS, 0, tk);
 	omsg.ticket.leader = htonl(get_node_id(tk->voted_for));
 	return booth_udp_send_auth(conf_ptr, sender, &omsg, sendmsglen(&omsg));
 }

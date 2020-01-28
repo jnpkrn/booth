@@ -490,7 +490,8 @@ static void process_connection(struct booth_config *conf_ptr, int ci)
 	return;
 
 send_err:
-	init_header(&err_reply.header, CL_RESULT, 0, 0, errc, 0, sizeof(err_reply));
+	init_header(conf_ptr, &err_reply.header, CL_RESULT, 0, 0, errc, 0,
+	            sizeof(err_reply));
 	send_client_msg(conf_ptr, req_cl->fd, &err_reply);
 
 kill:
@@ -686,7 +687,7 @@ static int add_hmac(struct booth_config *conf_ptr, void *data, int len)
 
 	assert(conf_ptr != NULL);
 
-	if (!is_auth_req())
+	if (!is_auth_req(conf_ptr))
 		return 0;
 
 	payload_len = len - sizeof(struct hmac);
@@ -739,7 +740,7 @@ static int booth_tcp_recv_auth(struct booth_config *conf_ptr,
 		return got;
 	}
 	total = got;
-	if (is_auth_req()) {
+	if (is_auth_req(conf_ptr)) {
 		got = booth_tcp_recv(from, (unsigned char *)buf+payload_len, sizeof(struct hmac));
 		if (got != sizeof(struct hmac)
 				|| check_auth(conf_ptr, from, buf, len)) {
@@ -1055,10 +1056,10 @@ int check_auth(struct booth_config *conf_ptr, struct booth_site *from,
 	int payload_len;
 	struct hmac *hp;
 
-	if (!is_auth_req())
-		return 0;
-
 	assert(conf_ptr != NULL);
+
+	if (!is_auth_req(conf_ptr))
+		return 0;
 
 	payload_len = len - sizeof(struct hmac);
 	if (payload_len < 0) {
