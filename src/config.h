@@ -346,11 +346,21 @@ struct booth_config {
  * @param[in] type role currently being acted as
  *
  * @return 0 or negative value (-1 or -errno) on error
+ *
+ * @note To eventually dispose the associated memory, use #config_free.
  */
 int read_config(struct booth_config **conf_pptr,
                 const booth_transport_table_t *transport,
                 const struct ticket_handler *ticket_handler,
                 const char *path, int type);
+
+/**
+ * @internal
+ * Memory disposal for the config object
+ *
+ * @param[inout] conf_ptr config object to free
+ */
+void config_free(struct booth_config *conf_ptr);
 
 /**
  * @internal

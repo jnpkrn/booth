@@ -1640,6 +1640,8 @@ int main(int argc, char *argv[], char *envp[])
 	}
 
 out:
+	config_free(booth_conf);
+
 #ifdef LOGGING_LIBQB
 	qb_log_fini();
 #endif

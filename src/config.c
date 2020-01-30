@@ -537,7 +537,7 @@ int read_config(struct booth_config **conf_pptr,
 	struct ticket_config *current_tk = NULL;
 
 	assert(conf_pptr != NULL);
-	free(*conf_pptr);
+	config_free(*conf_pptr);
 
 	fp = fopen(path, "r");
 	if (!fp) {
@@ -901,9 +901,17 @@ out:
 	log_error("%s in config file line %d",
 			error, lineno);
 
-	free(*conf_pptr);
+	config_free(*conf_pptr);
 	*conf_pptr = NULL;
 	return -1;
+}
+
+void config_free(struct booth_config *conf_ptr)
+{
+	if (conf_ptr != NULL) {
+		free(conf_ptr->ticket);
+	}
+	free(conf_ptr);
 }
 
 int check_config(struct booth_config *conf_ptr, int type)
