@@ -47,28 +47,6 @@
 
 extern int TIME_RES;
 
-int find_ticket_by_name(struct booth_config *conf_ptr,
-                        const char *ticket, struct ticket_config **found)
-{
-	struct ticket_config *tk;
-	int i;
-
-	assert(conf_ptr != NULL);
-
-	if (found)
-		*found = NULL;
-
-	FOREACH_TICKET(conf_ptr, i, tk) {
-		if (!strncmp(tk->name, ticket, sizeof(tk->name))) {
-			if (found)
-				*found = tk;
-			return 1;
-		}
-	}
-
-	return 0;
-}
-
 int check_ticket(struct booth_config *conf_ptr, const char *ticket,
                  struct ticket_config **found)
 {

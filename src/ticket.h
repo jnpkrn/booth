@@ -166,19 +166,6 @@ int setup_ticket(struct booth_config *conf_ptr);
 
 /**
  * @internal
- * Pick a ticket structure based on given name
- *
- * @param[inout] conf_ptr config object to refer to
- * @param[in] ticket name of the ticket to search for
- * @param[out] found place the reference here when found
- *
- * @return see @list_ticket and @send_header_plus
- */
-int find_ticket_by_name(struct booth_config *conf_ptr,
-                        const char *ticket, struct ticket_config **found);
-
-/**
- * @internal
  * Apply the next step with the ticket if possible.
  *
  * @param[inout] conf_ptr config object to refer to

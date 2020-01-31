@@ -395,4 +395,17 @@ int find_site_by_id(struct booth_config *conf_ptr, uint32_t site_id,
 
 const char *type_to_string(int type);
 
+/**
+ * @internal
+ * Pick a ticket structure based on given name
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] ticket name of the ticket to search for
+ * @param[out] found place the reference here when found
+ *
+ * @return see @list_ticket and @send_header_plus
+ */
+int find_ticket_by_name(struct booth_config *conf_ptr,
+                        const char *ticket, struct ticket_config **found);
+
 #endif /* _CONFIG_H */
