@@ -31,9 +31,10 @@
 #include "b_config.h"
 #include "booth.h"
 #include "config.h"
+#include "log.h"
 #include "raft.h"
 #include "ticket.h"
-#include "log.h"
+#include "utils.h"
 
 static int ticket_size = 0;
 

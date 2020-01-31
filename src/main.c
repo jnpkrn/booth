@@ -65,6 +65,7 @@
 #include "inline-fn.h"
 #include "pacemaker.h"
 #include "ticket.h"
+#include "utils.h"
 #include "request.h"
 #include "attr.h"
 #include "handler.h"
@@ -982,20 +983,6 @@ static void print_usage(void)
 
 #define OPTION_STRING		"c:Dl:t:s:FhSwC"
 #define ATTR_OPTION_STRING		"c:Dt:s:h"
-
-void safe_copy(char *dest, const char *value, size_t buflen,
-               const char *description)
-{
-	int content_len = buflen - 1;
-
-	if (strlen(value) >= content_len) {
-		fprintf(stderr, "'%s' exceeds maximum %s length of %d\n",
-			value, description, content_len);
-		exit(EXIT_FAILURE);
-	}
-	strncpy(dest, value, content_len);
-	dest[content_len] = 0;
-}
 
 static int host_convert(char *hostname, char *ip_str, size_t ip_size)
 {

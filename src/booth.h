@@ -361,20 +361,6 @@ int find_client_by_fd(int fd);
 
 /**
  * @internal
- * Like strncpy, but with explicit protection and better diagnostics
- *
- * @param[out] dest where to copy the string to
- * @param[in] value where to copy the string from
- * @param[in] buflen nmaximum size of #dest (incl. trailing '\0', or sizeof)
- * @param[in] description how to refer to the target as
- *
- * @return number of clients tracked (incl. this one)
- */
-void safe_copy(char *dest, const char *value, size_t buflen,
-               const char *description);
-
-/**
- * @internal
  * Re-read and reflect possibly new contents of the authentication key file
  *
  * @note XXX UNUSED
