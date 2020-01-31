@@ -560,6 +560,7 @@ void disown_ticket(struct ticket_config *tk)
 	get_time(&tk->term_expires);
 }
 
+/* XXX UNUSED */
 int disown_if_expired(struct ticket_config *tk)
 {
 	if (is_past(&tk->term_expires) ||
@@ -1014,7 +1015,7 @@ just_resend:
 	resend_msg(conf_ptr, tk);
 }
 
-int postpone_ticket_processing(struct ticket_config *tk)
+static int postpone_ticket_processing(struct ticket_config *tk)
 {
 	extern timetype start_time;
 

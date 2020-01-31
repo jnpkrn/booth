@@ -70,7 +70,6 @@ typedef struct booth_transport booth_transport_table_t[TRANSPORT_ENTRIES];
  */
 int find_myself(struct booth_config *conf_ptr, int fuzzy_allowed);
 
-int read_client(struct client *req_cl);
 int check_boothc_header(struct boothc_header *data, int len_incl_data);
 
 /**

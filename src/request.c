@@ -50,6 +50,7 @@ void *add_req(
 	return rp;
 }
 
+/* XXX UNUSED */
 int get_req_id(const void *rp)
 {
 	if (!rp)

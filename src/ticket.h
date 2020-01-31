@@ -95,6 +95,8 @@ extern int TIME_RES;
 
 void save_committed_tkt(struct ticket_config *tk);
 void disown_ticket(struct ticket_config *tk);
+
+/* XXX UNUSED */
 int disown_if_expired(struct ticket_config *tk);
 
 /**
@@ -124,9 +126,6 @@ int check_ticket(struct booth_config *conf_ptr, const char *ticket,
  */
 int check_site(struct booth_config *conf_ptr, const char *site,
                int *local);
-
-int grant_ticket(struct ticket_config *ticket);
-int revoke_ticket(struct ticket_config *ticket);
 
 /**
  * @internal
@@ -189,8 +188,6 @@ int find_ticket_by_name(struct booth_config *conf_ptr,
  */
 void set_ticket_wakeup(struct booth_config *conf_ptr,
                        struct ticket_config *tk);
-
-int postpone_ticket_processing(struct ticket_config *tk);
 
 /**
  * @internal

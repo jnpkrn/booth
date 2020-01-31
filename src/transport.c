@@ -361,9 +361,8 @@ retry:
 	return 0;
 }
 
-
 /* Only used for client requests (tcp) */
-int read_client(struct client *req_cl)
+static int read_client(struct client *req_cl)
 {
 	char *msg;
 	struct boothc_header *header;
@@ -412,7 +411,6 @@ int read_client(struct client *req_cl)
 
 	return 0;
 }
-
 
 /* Only used for client requests (tcp) */
 static void process_connection(struct booth_config *conf_ptr, int ci)
