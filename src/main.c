@@ -108,8 +108,6 @@ typedef enum
 	BOOTHD_STARTING
 } BOOTH_DAEMON_STATE;
 
-int poll_timeout;
-
 static void client_alloc(void)
 {
 	int i;
@@ -523,7 +521,7 @@ static int loop(struct command_line *cl, struct booth_config *conf_ptr, int fd)
 			local->site_id, local->site_id);
 
 	while (1) {
-		rv = poll(pollfds, client_maxi + 1, poll_timeout);
+		rv = poll(pollfds, client_maxi + 1, conf_ptr->poll_timeout);
 		if (rv == -1 && errno == EINTR)
 			continue;
 		if (rv < 0) {

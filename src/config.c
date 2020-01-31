@@ -510,8 +510,6 @@ err_out:
 	return -1;
 }
 
-extern int poll_timeout;
-
 int read_config(struct booth_config **conf_pptr,
                 const booth_transport_table_t *transport,
                 const struct ticket_handler *ticket_handler,
@@ -881,9 +879,9 @@ no_value:
 	          sizeof((*conf_pptr)->path_to_self),
 	          "path to config file itself");
 
-	poll_timeout = min(POLL_TIMEOUT, min_timeout/10);
-	if (!poll_timeout)
-		poll_timeout = POLL_TIMEOUT;
+	(*conf_pptr)->poll_timeout = min(POLL_TIMEOUT, min_timeout/10);
+	if ((*conf_pptr)->poll_timeout == 0)
+		(*conf_pptr)->poll_timeout = POLL_TIMEOUT;
 
 	return 0;
 
