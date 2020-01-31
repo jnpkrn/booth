@@ -11,6 +11,14 @@
 #include <stdlib.h>  /* fprintf */
 #include <string.h>  /* strlen, strncpy */
 
+int check_max_len_valid(const char *s, size_t max)
+{
+	for (size_t i = 0; i < max; i++)
+		if (s[i] == '\0')
+			return 1;
+	return 0;
+}
+
 void safe_copy(char *dest, const char *value, size_t buflen,
                const char *description)
 {

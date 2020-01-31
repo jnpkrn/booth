@@ -164,8 +164,6 @@ void update_ticket_state(struct booth_config *conf_ptr,
  */
 int setup_ticket(struct booth_config *conf_ptr);
 
-int check_max_len_valid(const char *s, int max);
-
 /**
  * @internal
  * Pick a ticket structure based on given name

@@ -31,30 +31,21 @@
 #else
 #include "alt/range2random_glib.h"
 #endif
-#include "ticket.h"
+#include "booth.h"
 #include "config.h"
-#include "pacemaker.h"
+#include "handler.h"
 #include "inline-fn.h"
 #include "log.h"
-#include "booth.h"
-#include "raft.h"
-#include "handler.h"
-#include "request.h"
 #include "manual.h"
+#include "pacemaker.h"
+#include "raft.h"
+#include "request.h"
+#include "ticket.h"
+#include "utils.h"
 
 #define TK_LINE			256
 
 extern int TIME_RES;
-
-/* Untrusted input, must fit (incl. \0) in a buffer of max chars. */
-int check_max_len_valid(const char *s, int max)
-{
-	int i;
-	for(i=0; i<max; i++)
-		if (s[i] == 0)
-			return 1;
-	return 0;
-}
 
 int find_ticket_by_name(struct booth_config *conf_ptr,
                         const char *ticket, struct ticket_config **found)
