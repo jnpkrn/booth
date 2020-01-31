@@ -157,6 +157,8 @@ int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
 	int len, rv = -1;
 	char *msg = NULL;
 
+	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+
 	if (!*cl.site)
 		site = local;
 	else {
@@ -175,7 +177,7 @@ int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
 		goto out_close;
 	}
 
-	tpt = booth_transport + TCP;
+	tpt = *conf_ptr->transport + TCP;
 
 	init_header(conf_ptr, &cl.attr_msg.header, cmd, 0, cl.options, 0, 0,
 	            sizeof(cl.attr_msg));

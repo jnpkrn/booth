@@ -512,7 +512,9 @@ err_out:
 
 extern int poll_timeout;
 
-int read_config(struct booth_config **conf_pptr, const char *path, int type)
+int read_config(struct booth_config **conf_pptr,
+                const booth_transport_table_t *transport, const char *path,
+                int type)
 {
 	char line[1024];
 	FILE *fp;
@@ -546,13 +548,12 @@ int read_config(struct booth_config **conf_pptr, const char *path, int type)
 	memset(*conf_pptr, 0, sizeof(struct booth_config)
 			+ TICKET_ALLOC * sizeof(struct ticket_config));
 	ticket_size = TICKET_ALLOC;
-
+	(*conf_pptr)->transport = transport;
 
 	(*conf_pptr)->proto = UDP;
 	(*conf_pptr)->port = BOOTH_DEFAULT_PORT;
 	(*conf_pptr)->maxtimeskew = BOOTH_DEFAULT_MAX_TIME_SKEW;
 	(*conf_pptr)->authkey[0] = '\0';
-
 
 	/* Provide safe defaults. -1 is reserved, though. */
 	(*conf_pptr)->uid = -2;

@@ -74,10 +74,13 @@
 
 #define CLIENT_NALLOC		32
 
+extern const booth_transport_table_t booth__transport;
+
 static int daemonize = 1;
 int enable_stderr = 0;
 timetype start_time;
 
+static struct booth_config *booth_conf;
 
 /** Structure for "clients".
  * Filehandles with incoming data get registered here (and in pollfds),
@@ -104,10 +107,6 @@ typedef enum
 } BOOTH_DAEMON_STATE;
 
 int poll_timeout;
-
-
-
-struct booth_config *booth_conf;
 struct command_line cl;
 
 static void client_alloc(void)
@@ -365,7 +364,7 @@ static int setup_config(struct booth_config **conf_pptr, int type)
 
 	assert(conf_pptr != NULL);
 
-	rv = read_config(conf_pptr, cl.configfile, type);
+	rv = read_config(conf_pptr, &booth__transport, cl.configfile, type);
 	if (rv < 0)
 		goto out;
 
@@ -413,17 +412,20 @@ out:
 	return rv;
 }
 
-static int setup_transport(void)
+static int setup_transport(struct booth_config *conf_ptr)
 {
 	int rv;
 
-	rv = transport()->init(message_recv);
+	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+
+	rv = transport(conf_ptr)->init(conf_ptr, message_recv);
 	if (rv < 0) {
-		log_error("failed to init booth_transport %s", transport()->name);
+		log_error("failed to init booth_transport %s",
+		          transport(conf_ptr)->name);
 		goto out;
 	}
 
-	rv = booth_transport[TCP].init(NULL);
+	rv = (*conf_ptr->transport)[TCP].init(conf_ptr, NULL);
 	if (rv < 0) {
 		log_error("failed to init booth_transport[TCP]");
 		goto out;
@@ -497,7 +499,7 @@ static int loop(struct booth_config *conf_ptr, int fd)
 	void (*deadfn) (int ci);
 	int rv, i;
 
-	rv = setup_transport();
+	rv = setup_transport(conf_ptr);
 	if (rv < 0)
 		goto fail;
 
@@ -661,6 +663,8 @@ static int query_get_string_answer(struct booth_config *conf_ptr,
 	size_t msg_size;
 	void *request;
 
+	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+
 	if (cl.type == GEOSTORE) {
 		test_reply_f = test_attr_reply;
 		msg_size = sizeof(cl.attr_msg);
@@ -683,7 +687,7 @@ static int query_get_string_answer(struct booth_config *conf_ptr,
 		goto out;
 	}
 
-	tpt = booth_transport + TCP;
+	tpt = *conf_ptr->transport + TCP;
 	rv = tpt->open(site);
 	if (rv < 0)
 		goto out_close;
@@ -740,6 +744,8 @@ static int do_command(struct booth_config *conf_ptr,
 	int reply_cnt = 0, msg_logged = 0;
 	const char *op_str = "";
 
+	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+
 	if (cmd == CMD_GRANT)
 		op_str = "grant";
 	else if (cmd == CMD_REVOKE)
@@ -749,7 +755,7 @@ static int do_command(struct booth_config *conf_ptr,
 	site = NULL;
 
 	/* Always use TCP for client - at least for now. */
-	tpt = booth_transport + TCP;
+	tpt = *conf_ptr->transport + TCP;
 
 	if (!*cl.site)
 		site = local;

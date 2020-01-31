@@ -45,7 +45,7 @@ typedef enum {
 
 struct booth_transport {
 	const char *name;
-	int (*init) (void *);
+	int (*init) (struct booth_config *, void *);
 	int (*open) (struct booth_site *);
 	int (*send) (struct booth_config *, struct booth_site *, void *, int);
 	int (*send_auth) (struct booth_config *, struct booth_site *, void *, int);
@@ -57,7 +57,7 @@ struct booth_transport {
 	int (*exit) (void);
 };
 
-extern const struct booth_transport booth_transport[TRANSPORT_ENTRIES];
+typedef struct booth_transport booth_transport_table_t[TRANSPORT_ENTRIES];
 
 /**
  * @internal

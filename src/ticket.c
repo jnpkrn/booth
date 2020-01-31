@@ -839,7 +839,8 @@ int ticket_broadcast(struct booth_config *conf_ptr,
 		expect_replies(tk, expected_reply);
 	}
 	ticket_activate_timeout(tk);
-	return transport()->broadcast_auth(conf_ptr, &msg, sendmsglen(&msg));
+	return transport(conf_ptr)->broadcast_auth(conf_ptr, &msg,
+	                                           sendmsglen(&msg));
 }
 
 

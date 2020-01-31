@@ -324,9 +324,9 @@ struct booth_config {
     int ticket_count;
     int ticket_allocated;
     struct ticket_config *ticket;
-};
 
-extern struct booth_config *booth_conf;
+    const booth_transport_table_t *transport;
+};
 
 #define is_auth_req(b_) ((b_)->authkey[0] != '\0')
 
@@ -335,12 +335,15 @@ extern struct booth_config *booth_conf;
  * Parse booth configuration file and store as structured data
  *
  * @param[inout] conf_pptr config object to free-alloc cycle & fill accordingly
+ * @param[in] transport transport handlers table
  * @param[in] path where the configuration file is expected
  * @param[in] type role currently being acted as
  *
  * @return 0 or negative value (-1 or -errno) on error
  */
-int read_config(struct booth_config **conf_pptr, const char *path, int type);
+int read_config(struct booth_config **conf_pptr,
+                const booth_transport_table_t *transport, const char *path,
+                int type);
 
 /**
  * @internal

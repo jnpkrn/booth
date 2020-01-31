@@ -150,10 +150,11 @@ static inline void init_ticket_msg(struct booth_config *conf_ptr,
 	}
 }
 
-/* XXX uses globals: booth_transport, booth_conf */
-static inline struct booth_transport const *transport(void)
+static inline struct booth_transport const *transport(struct booth_config *conf_ptr)
 {
-	return booth_transport + booth_conf->proto;
+	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+
+	return *conf_ptr->transport + conf_ptr->proto;
 }
 
 static inline const char *site_string(const struct booth_site *site)

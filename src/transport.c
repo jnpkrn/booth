@@ -567,9 +567,12 @@ int setup_tcp_listener(int test_only)
 	return s;
 }
 
-static int booth_tcp_init(void * unused __attribute__((unused)))
+static int booth_tcp_init(struct booth_config *conf_ptr,
+                          void * unused __attribute__((unused)))
 {
 	int rv;
+
+	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
 
 	if (get_local_id() < 0)
 		return -1;
@@ -578,8 +581,7 @@ static int booth_tcp_init(void * unused __attribute__((unused)))
 	if (rv < 0)
 		return rv;
 
-	client_add(rv, booth_transport + TCP,
-			process_tcp_listener, NULL);
+	client_add(rv, *conf_ptr->transport + TCP, process_tcp_listener, NULL);
 
 	return 0;
 }
@@ -851,18 +853,19 @@ static void process_recv(struct booth_config *conf_ptr, int ci)
 	}
 }
 
-static int booth_udp_init(void *f)
+static int booth_udp_init(struct booth_config *conf_ptr, void *f)
 {
 	int rv;
+
+	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
 
 	rv = setup_udp_server();
 	if (rv < 0)
 		return rv;
 
 	deliver_fn = f;
-	client_add(local->udp_fd,
-			booth_transport + UDP,
-			process_recv, NULL);
+	client_add(local->udp_fd, *conf_ptr->transport + UDP, process_recv,
+	           NULL);
 
 	return 0;
 }
@@ -935,7 +938,8 @@ static int booth_udp_exit(void)
 }
 
 /* SCTP transport layer has not been developed yet */
-static int booth_sctp_init(void *f __attribute__((unused)))
+static int booth_sctp_init(struct booth_config *conf_ptr __attribute__((unused)),
+                           void *f __attribute__((unused)))
 {
 	return 0;
 }
@@ -963,7 +967,9 @@ static int return_0(void)
 {
 	return 0;
 }
-const struct booth_transport booth_transport[TRANSPORT_ENTRIES] = {
+
+/* semi-hidden, only main.c to have a knowledge about this */
+const booth_transport_table_t booth__transport = {
 	[TCP] = {
 		.name = "TCP",
 		.init = booth_tcp_init,
