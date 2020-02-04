@@ -180,7 +180,16 @@ int check_max_len_valid(const char *s, int max);
 int find_ticket_by_name(struct booth_config *conf_ptr,
                         const char *ticket, struct ticket_config **found);
 
-void set_ticket_wakeup(struct ticket_config *tk);
+/**
+ * @internal
+ * Apply the next step with the ticket if possible.
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] tk ticket at hand
+ */
+void set_ticket_wakeup(struct booth_config *conf_ptr,
+                       struct ticket_config *tk);
+
 int postpone_ticket_processing(struct ticket_config *tk);
 
 /**
@@ -304,7 +313,17 @@ int leader_update_ticket(struct booth_config *conf_ptr,
                          struct ticket_config *tk);
 
 void add_random_delay(struct ticket_config *tk);
-void schedule_election(struct ticket_config *tk, cmd_reason_t reason);
+
+/**
+ * @internal
+ * Make it so the nearest ticket swipe will start election
+ *
+ * @param[inout] conf_ptr config object to refer to
+ * @param[in] tk ticket at hand
+ * @param[in] reason explains why new election is conducted
+ */
+void schedule_election(struct booth_config *conf_ptr, struct ticket_config *tk,
+                       cmd_reason_t reason);
 
 int is_manual(struct ticket_config *tk);
 

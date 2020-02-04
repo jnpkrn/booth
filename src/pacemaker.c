@@ -494,6 +494,9 @@ static int pcmk_load_ticket(struct booth_config *conf_ptr,
 	int rv = 0, pipe_rv;
 	FILE *p;
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	/* This here gets run during startup; testing that here means that
 	 * normal operation won't be interrupted with that test. */
 	test_atomicity();
@@ -523,7 +526,7 @@ static int pcmk_load_ticket(struct booth_config *conf_ptr,
 		if (tk->is_granted) {
 			log_warn("%s: granted here, assume it belonged to us",
 				tk->name);
-			set_leader(tk, local);
+			set_leader(tk, conf_ptr->local);
 		}
 	}
 

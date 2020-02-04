@@ -27,13 +27,12 @@
 #include "config.h"
 #include "transport.h"
 
-
-
-inline static int get_local_id(void)
+inline static int get_local_id(struct booth_config *conf_ptr)
 {
-	return local ? local->site_id : -1;
-}
+	assert(conf_ptr != NULL);
 
+	return conf_ptr->local != NULL ? conf_ptr->local->site_id : -1;
+}
 
 inline static uint32_t get_node_id(struct booth_site *node)
 {
@@ -53,7 +52,8 @@ inline static int term_time_left(struct ticket_config *tk)
 }
 
 
-inline static int leader_and_valid(struct ticket_config *tk)
+inline static int leader_and_valid(struct ticket_config *tk,
+                                   const struct booth_site *local)
 {
 	if (tk->leader != local)
 		return 0;
@@ -81,10 +81,12 @@ static inline void init_header_bare(struct booth_config *conf_ptr,
                                     struct boothc_header *h) {
 	timetype now;
 
-	assert(local && local->site_id);
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL && conf_ptr->local->site_id != 0);
+
 	h->magic   = htonl(BOOTHC_MAGIC);
 	h->version = htonl(BOOTHC_VERSION);
-	h->from    = htonl(local->site_id);
+	h->from    = htonl(conf_ptr->local->site_id);
 	if (is_auth_req(conf_ptr)) {
 		get_time(&now);
 		h->opts  = htonl(BOOTH_OPT_AUTH);
@@ -246,8 +248,11 @@ static inline uint32_t index_max3(uint32_t a, uint32_t b, uint32_t c)
 
 
 /* only invoked when ticket leader */
-static inline void get_next_election_time(struct ticket_config *tk, timetype *next)
+static inline void get_next_election_time(struct ticket_config *tk,
+                                          timetype *next,
+                                          struct booth_site *local)
 {
+	assert(local != NULL);
 	assert(tk->leader == local);
 
 	/* if last_renewal is not set, which is unusual, it may mean
@@ -271,8 +276,10 @@ static inline void get_next_election_time(struct ticket_config *tk, timetype *ne
 
 
 static inline void expect_replies(struct ticket_config *tk,
-		int reply_type)
+		int reply_type, struct booth_site *local)
 {
+	assert(local != NULL);
+
 	tk->retry_number = 0;
 	tk->acks_expected = reply_type;
 	tk->acks_received = local->bitmask;
@@ -285,11 +292,14 @@ static inline void no_resends(struct ticket_config *tk)
 	tk->acks_expected = 0;
 }
 
-static inline struct booth_site *my_vote(struct ticket_config *tk)
+/* XXX UNUSED */
+static inline struct booth_site *my_vote(struct ticket_config *tk,
+                                         struct booth_site *local)
 {
-	return tk->votes_for[ local->index ];
-}
+	assert(local != NULL);
 
+	return tk->votes_for[local->index];
+}
 
 static inline int count_bits(uint64_t val) {
 	return __builtin_popcount(val);

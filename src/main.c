@@ -94,14 +94,6 @@ struct pollfd *pollfds = NULL;
 static int client_maxi;
 static int client_size = 0;
 
-
-static const struct booth_site _no_leader = {
-	.addr_string = "none",
-	.site_id = NO_ONE,
-	.index = -1,
-};
-struct booth_site *const no_leader = (struct booth_site*) &_no_leader;
-
 typedef enum
 {
 	BOOTHD_STARTED=0,
@@ -214,6 +206,7 @@ static int format_peers(struct booth_config *conf_ptr,
 	int i, alloc;
 
 	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
 
 	*pdata = NULL;
 	*len = 0;
@@ -225,7 +218,7 @@ static int format_peers(struct booth_config *conf_ptr,
 
 	cp = data;
 	FOREACH_NODE(conf_ptr, i, s) {
-		if (s == local)
+		if (s == conf_ptr->local)
 			continue;
 		strftime(time_str, sizeof(time_str), "%F %T",
 			localtime(&s->last_recv));
@@ -386,14 +379,15 @@ static int setup_config(struct command_line *cl, struct booth_config **conf_pptr
 
 	/* Set "local" pointer, ignoring errors. */
 	if (cl->type == DAEMON && cl->site[0]) {
-		if (!find_site_by_name(*conf_pptr, cl->site, &local, 1)) {
+		if (!find_site_by_name(*conf_pptr, cl->site,
+		                       &(*conf_pptr)->local, 1)) {
 			log_error("Cannot find \"%s\" in the configuration.",
 			          cl->site);
 			return -EINVAL;
 		}
-		local->local = 1;
+		(*conf_pptr)->local->local = 1;
 	} else
-		find_myself(*conf_pptr, NULL,
+		find_myself(*conf_pptr,
 		            cl->type == CLIENT || cl->type == GEOSTORE);
 
 
@@ -455,9 +449,9 @@ static int write_daemon_state(struct command_line *cl,
 	              getpid(),
 	              ( state == BOOTHD_STARTED  ? "started"  :
 	                  state == BOOTHD_STARTING ? "starting" : "invalid"),
-	              type_to_string(local->type), conf_ptr->name,
-	              get_local_id(), site_string(local),
-	              site_port(local));
+	              type_to_string(conf_ptr->local->type), conf_ptr->name,
+	              get_local_id(conf_ptr), site_string(conf_ptr->local),
+	              site_port(conf_ptr->local));
 
 	if (rv < 0 || rv == size) {
 		log_error("Buffer filled up in write_daemon_state().");
@@ -517,8 +511,9 @@ static int loop(struct command_line *cl, struct booth_config *conf_ptr, int fd)
 	}
 
 	log_info("BOOTH %s daemon started, node id is 0x%08X (%d).",
-		type_to_string(local->type),
-			local->site_id, local->site_id);
+		type_to_string(conf_ptr->local->type),
+		               conf_ptr->local->site_id,
+		               conf_ptr->local->site_id);
 
 	while (1) {
 		rv = poll(pollfds, client_maxi + 1, conf_ptr->poll_timeout);
@@ -665,6 +660,7 @@ static int query_get_string_answer(struct command_line *cl,
 	void *request;
 
 	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+	assert(conf_ptr->local != NULL);
 
 	if (cl->type == GEOSTORE) {
 		test_reply_f = test_attr_reply;
@@ -681,7 +677,7 @@ static int query_get_string_answer(struct command_line *cl,
 	init_header(conf_ptr, header, cl->op, 0, cl->options, 0, 0, msg_size);
 
 	if (*cl->site == '\0')
-		site = local;
+		site = conf_ptr->local;
 	else if (!find_site_by_name(conf_ptr, cl->site, &site, 1)) {
 		log_error("cannot find site \"%s\"", cl->site);
 		rv = ENOENT;
@@ -758,7 +754,7 @@ static int do_command(struct command_line *cl, struct booth_config *conf_ptr)
 	tpt = *conf_ptr->transport + TCP;
 
 	if (*cl->site == '\0')
-		site = local;
+		site = conf_ptr->local;
 	else {
 		if (!find_site_by_name(conf_ptr, cl->site, &site, 1)) {
 			log_error("Site \"%s\" not configured.", cl->site);
@@ -767,7 +763,7 @@ static int do_command(struct command_line *cl, struct booth_config *conf_ptr)
 	}
 
 	if (site->type == ARBITRATOR) {
-		if (site == local) {
+		if (site == conf_ptr->local) {
 			log_error("We're just an arbitrator, cannot grant/revoke tickets here.");
 		} else {
 			log_error("%s is just an arbitrator, cannot grant/revoke tickets there.",
@@ -1324,6 +1320,7 @@ static int do_status(struct command_line *cl, struct booth_config **conf_pptr)
 	char lockfile_data[1024], *cp;
 
 	assert(conf_pptr != NULL);
+	assert(*conf_pptr != NULL);
 
 	ret = PCMK_OCF_NOT_RUNNING;
 
@@ -1334,12 +1331,10 @@ static int do_status(struct command_line *cl, struct booth_config **conf_pptr)
 		goto quit;
 	}
 
-
-	if (!local) {
+	if ((*conf_pptr)->local == NULL) {
 		reason = "No Service IP active here.";
 		goto quit;
 	}
-
 
 	rv = _lockfile(cl, O_RDWR, &status_lock_fd, &pid);
 	if (status_lock_fd == -1) {
@@ -1376,9 +1371,7 @@ static int do_status(struct command_line *cl, struct booth_config **conf_pptr)
 	if (cp)
 		*cp = 0;
 
-
-
-	rv = setup_tcp_listener(1);
+	rv = setup_tcp_listener((*conf_pptr)->local, 1);
 	if (rv == 0) {
 		reason = "TCP port not in use.";
 		goto quit;
@@ -1389,7 +1382,8 @@ static int do_status(struct command_line *cl, struct booth_config **conf_pptr)
 	        cl->lockfile, lockfile_data);
 	if (!daemonize)
 		fprintf(stderr, "Booth at %s port %d seems to be running.\n",
-		        site_string(local), site_port(local));
+		        site_string((*conf_pptr)->local),
+		        site_port((*conf_pptr)->local));
 	return 0;
 
 
@@ -1461,7 +1455,7 @@ static int do_server(struct command_line *cl, struct booth_config **conf_pptr)
 	if (rv < 0)
 		return rv;
 
-	if (!local) {
+	if ((*conf_pptr)->local == NULL) {
 		log_error("Cannot find myself in the configuration.");
 		exit(EXIT_FAILURE);
 	}
@@ -1481,14 +1475,14 @@ static int do_server(struct command_line *cl, struct booth_config **conf_pptr)
 
 	atexit(server_exit);
 
-	strcat(log_ent, type_to_string(local->type));
+	strcat(log_ent, type_to_string((*conf_pptr)->local->type));
 	cl_log_set_entity(log_ent);
 	cl_log_enable_stderr(enable_stderr ? TRUE : FALSE);
 	cl_log_set_facility(HA_LOG_FACILITY);
 	cl_inherit_logging_environment(0);
 
 	log_info("BOOTH %s %s daemon is starting",
-			type_to_string(local->type), RELEASE_STR);
+	         type_to_string((*conf_pptr)->local->type), RELEASE_STR);
 
 	signal(SIGUSR1, (__sighandler_t)tickets_log_info);
 	signal(SIGTERM, (__sighandler_t)sig_exit_handler);
@@ -1500,9 +1494,12 @@ static int do_server(struct command_line *cl, struct booth_config **conf_pptr)
 	/* we don't want to be killed by the OOM-killer */
 	if (set_procfs_val("/proc/self/oom_score_adj", "-999"))
 		(void)set_procfs_val("/proc/self/oom_adj", "-16");
+	/* whenever changing this, sd_notify_wrapper needs to be updated! */
 	set_proc_title("%s %s %s for [%s]:%d",
-	               DAEMON_NAME, cl->configfile, type_to_string(local->type),
-	               site_string(local), site_port(local));
+	               DAEMON_NAME, cl->configfile,
+	               type_to_string((*conf_pptr)->local->type),
+	               site_string((*conf_pptr)->local),
+	               site_port((*conf_pptr)->local));
 
 	rv = limit_this_process(*conf_pptr);
 	if (rv)

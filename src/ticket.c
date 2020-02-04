@@ -125,11 +125,14 @@ static int ticket_dangerous(struct booth_config *conf_ptr,
 	 */
 	static int no_log_delay_msg;
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	if (!is_time_set(&tk->delay_commit))
 		return 0;
 
 	if (is_past(&tk->delay_commit) || all_sites_replied(conf_ptr, tk)) {
-		if (tk->leader == local) {
+		if (tk->leader == conf_ptr->local) {
 			tk_log_info("%s, committing to CIB",
 				is_past(&tk->delay_commit) ?
 				"ticket delay expired" : "all sites replied");
@@ -154,14 +157,15 @@ static int ticket_dangerous(struct booth_config *conf_ptr,
 int ticket_write(struct booth_config *conf_ptr, struct ticket_config *tk)
 {
 	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
 
-	if (local->type != SITE)
+	if (conf_ptr->local->type != SITE)
 		return -EINVAL;
 
 	if (ticket_dangerous(conf_ptr, tk))
 		return 1;
 
-	if (tk->leader == local) {
+	if (tk->leader == conf_ptr->local) {
 		if (tk->state != ST_LEADER) {
 			tk_log_info("ticket state not yet consistent, "
 				"delaying ticket grant to CIB");
@@ -193,11 +197,14 @@ void save_committed_tkt(struct ticket_config *tk)
 static void ext_prog_failed(struct booth_config *conf_ptr,
                             struct ticket_config *tk, int start_election)
 {
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	if (!is_manual(tk)) {
 		/* Give it to somebody else.
 	 	 * Just send a VOTE_FOR message, so the
 		 * others can start elections. */
-		if (leader_and_valid(tk)) {
+		if (leader_and_valid(tk, conf_ptr->local)) {
 			save_committed_tkt(tk);
 			reset_ticket(tk);
 			ticket_write(conf_ptr, tk);	
@@ -211,7 +218,7 @@ static void ext_prog_failed(struct booth_config *conf_ptr,
 		/* There is not much we can do now because
 		 * the manual ticket cannot be relocated.
 		 * Just warn the user. */
-		if (tk->leader == local) {
+		if (tk->leader == conf_ptr->local) {
 			save_committed_tkt(tk);
 			reset_ticket(tk);
 			ticket_write(conf_ptr, tk);	
@@ -311,6 +318,9 @@ static int acquire_ticket(struct booth_config *conf_ptr,
 {
 	int rv;
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	if (reason == OR_ADMIN && check_attr_prereq(tk, GRANT_MANUAL))
 		return RLT_ATTR_PREREQ;
 
@@ -326,9 +336,9 @@ static int acquire_ticket(struct booth_config *conf_ptr,
 	}
 
 	if (is_manual(tk)) {
-		rv = manual_selection(conf_ptr, tk, local, 1, reason);
+		rv = manual_selection(conf_ptr, tk, conf_ptr->local, 1, reason);
 	} else {
-		rv = new_election(conf_ptr, tk, local, 1, reason);
+		rv = new_election(conf_ptr, tk, conf_ptr->local, 1, reason);
 	}
 
 	return rv ? RLT_SYNC_FAIL : 0;
@@ -342,9 +352,12 @@ static int do_grant_ticket(struct booth_config *conf_ptr,
 {
 	int rv;
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	tk_log_info("granting ticket");
 
-	if (tk->leader == local)
+	if (tk->leader == conf_ptr->local)
 		return RLT_SUCCESS;
 	if (is_owned(tk)) {
 		if (is_manual(tk) && (options & OPT_IMMEDIATE)) {
@@ -431,6 +444,7 @@ static int list_ticket(struct booth_config *conf_ptr, char **pdata,
 	int multiple_grant_warning_length = 0;
 
 	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
 
 	*pdata = NULL;
 	*len = 0;
@@ -461,7 +475,8 @@ static int list_ticket(struct booth_config *conf_ptr, char **pdata,
 		} else
 			strcpy(timeout_str, "INF");
 
-		if (tk->leader == local && is_time_set(&tk->delay_commit)
+		if (tk->leader == conf_ptr->local
+				&& is_time_set(&tk->delay_commit)
 				&& !is_past(&tk->delay_commit)) {
 			ts = wall_ts(&tk->delay_commit);
 			strcpy(pending_str, " (commit pending until ");
@@ -575,15 +590,19 @@ void reset_ticket_and_set_no_leader(struct ticket_config *tk)
 	tk_log_debug("ticket leader set to no_leader");
 }
 
-static void log_reacquire_reason(struct ticket_config *tk)
+static void log_reacquire_reason(struct booth_config *conf_ptr,
+                                 struct ticket_config *tk)
 {
 	int valid;
 	const char *where_granted = "\0";
 	char buff[75];
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	valid = is_time_set(&tk->term_expires) && !is_past(&tk->term_expires);
 
-	if (tk->leader == local) {
+	if (tk->leader == conf_ptr->local) {
 		where_granted = "granted here";
 	} else {
 		snprintf(buff, sizeof(buff), "granted to %s",
@@ -595,7 +614,7 @@ static void log_reacquire_reason(struct ticket_config *tk)
 		tk_log_warn("%s, but not valid "
 			"anymore (will try to reacquire)", where_granted);
 	}
-	if (tk->is_granted && tk->leader != local) {
+	if (tk->is_granted && tk->leader != conf_ptr->local) {
 		if (tk->leader && tk->leader != no_leader) {
 			tk_log_error("granted here, but also %s, "
 				"that's really too bad (will try to reacquire)",
@@ -610,6 +629,9 @@ static void log_reacquire_reason(struct ticket_config *tk)
 void update_ticket_state(struct booth_config *conf_ptr,
                          struct ticket_config *tk, struct booth_site *sender)
 {
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	if (tk->state == ST_CANDIDATE) {
 		tk_log_info("learned from %s about "
 				"newer ticket, stopping elections",
@@ -619,7 +641,7 @@ void update_ticket_state(struct booth_config *conf_ptr,
 		tk->expect_more_rejects = 1;
 	}
 
-	if (tk->leader == local || tk->is_granted) {
+	if (tk->leader == conf_ptr->local || tk->is_granted) {
 		/* message from a live leader with valid ticket? */
 		if (sender == tk->leader && term_time_left(tk)) {
 			if (tk->is_granted) {
@@ -668,11 +690,12 @@ int setup_ticket(struct booth_config *conf_ptr)
 	int i;
 
 	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
 
 	FOREACH_TICKET(conf_ptr, i, tk) {
 		reset_ticket(tk);
 
-		if (local->type == SITE) {
+		if (conf_ptr->local->type == SITE) {
 			if (!conf_ptr->ticket_handler->load_ticket(conf_ptr, tk)) {
 				update_ticket_state(conf_ptr, tk, NULL);
 			}
@@ -722,6 +745,9 @@ int process_client_request(struct booth_config *conf_ptr,
 	struct boothc_ticket_msg omsg;
 	struct boothc_ticket_msg *msg;
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	msg = (struct boothc_ticket_msg *)buf;
 	cmd = ntohl(msg->header.cmd);
 	if (!check_ticket(conf_ptr, msg->ticket.id, &tk)) {
@@ -748,7 +774,7 @@ int process_client_request(struct booth_config *conf_ptr,
 		goto reply_now;
 	}
 
-	if ((cmd == CMD_REVOKE) && tk->leader != local) {
+	if ((cmd == CMD_REVOKE) && tk->leader != conf_ptr->local) {
 		tk_log_info("not granted here, redirect to %s",
 				ticket_leader_string(tk));
 		rv = RLT_REDIRECT;
@@ -828,6 +854,8 @@ int ticket_broadcast(struct booth_config *conf_ptr,
 {
 	struct boothc_ticket_msg msg;
 
+	assert(conf_ptr != NULL);
+
 	init_ticket_msg(conf_ptr, &msg, cmd, 0, res, reason, tk);
 	tk_log_debug("broadcasting '%s' (term=%d, valid=%d)",
 			state_to_string(cmd),
@@ -836,7 +864,7 @@ int ticket_broadcast(struct booth_config *conf_ptr,
 
 	tk->last_request = cmd;
 	if (expected_reply) {
-		expect_replies(tk, expected_reply);
+		expect_replies(tk, expected_reply, conf_ptr->local);
 	}
 	ticket_activate_timeout(tk);
 	return transport(conf_ptr)->broadcast_auth(conf_ptr, &msg,
@@ -925,8 +953,9 @@ static void resend_msg(struct booth_config *conf_ptr,
 	int i;
 
 	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
 
-	if (!(tk->acks_received ^ local->bitmask)) {
+	if (!(tk->acks_received ^ conf_ptr->local->bitmask)) {
 		ticket_broadcast(conf_ptr, tk, tk->last_request, 0,
 		                 RLT_SUCCESS, 0);
 	} else {
@@ -953,7 +982,7 @@ static void handle_resends(struct booth_config *conf_ptr,
 	if (++tk->retry_number > tk->retries) {
 		tk_log_info("giving up on sending retries");
 		no_resends(tk);
-		set_ticket_wakeup(tk);
+		set_ticket_wakeup(conf_ptr, tk);
 		return;
 	}
 
@@ -1011,7 +1040,7 @@ static void process_next_state(struct booth_config *conf_ptr,
 				}
 			}
 		} else {
-			log_reacquire_reason(tk);
+			log_reacquire_reason(conf_ptr, tk);
 			acquire_ticket(conf_ptr, tk, OR_REACQUIRE);
 		}
 		break;
@@ -1037,7 +1066,10 @@ static void ticket_lost(struct booth_config *conf_ptr,
 {
 	int reason = OR_TKT_LOST;
 
-	if (tk->leader != local) {
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
+	if (tk->leader != conf_ptr->local) {
 		tk_log_warn("lost at %s", site_string(tk->leader));
 	} else {
 		if (is_ext_prog_running(tk)) {
@@ -1054,9 +1086,9 @@ static void ticket_lost(struct booth_config *conf_ptr,
 	mark_ticket_as_revoked_from_leader(tk);
 	reset_ticket(tk);
 	set_state(tk, ST_FOLLOWER);
-	if (local->type == SITE) {
+	if (conf_ptr->local->type == SITE) {
 		ticket_write(conf_ptr, tk);
-		schedule_election(tk, reason);
+		schedule_election(conf_ptr, tk, reason);
 	}
 }
 
@@ -1216,7 +1248,7 @@ void process_tickets(struct booth_config *conf_ptr)
 		ticket_cron(conf_ptr, tk);
 		if (time_cmp(&last_cron, &tk->next_cron, ==)) {
 			tk_log_debug("nobody set ticket wakeup");
-			set_ticket_wakeup(tk);
+			set_ticket_wakeup(conf_ptr, tk);
 		}
 	}
 }
@@ -1266,7 +1298,7 @@ static void update_acks(struct booth_config *conf_ptr, struct ticket_config *tk,
 			(cmd == OP_REQ_VOTE && tk->last_request == OP_VOTE_FOR)) {
 		no_resends(tk);
 		tk->start_postpone = 0;
-		set_ticket_wakeup(tk);
+		set_ticket_wakeup(conf_ptr, tk);
 	}
 }
 
@@ -1325,7 +1357,7 @@ void add_random_delay(struct ticket_config *tk)
 	}
 }
 
-void set_ticket_wakeup(struct ticket_config *tk)
+void set_ticket_wakeup(struct booth_config *conf_ptr, struct ticket_config *tk)
 {
 	timetype near_future, tv, next_vote;
 
@@ -1338,9 +1370,9 @@ void set_ticket_wakeup(struct ticket_config *tk)
 
 		switch (tk->state) {
 		case ST_LEADER:
-			assert(tk->leader == local);
+			assert(tk->leader == conf_ptr->local);
 
-			get_next_election_time(tk, &next_vote);
+			get_next_election_time(tk, &next_vote, conf_ptr->local);
 
 			/* If timestamp is in the past, wakeup in
 			* near future */
@@ -1403,9 +1435,13 @@ void set_ticket_wakeup(struct ticket_config *tk)
 }
 
 
-void schedule_election(struct ticket_config *tk, cmd_reason_t reason)
+void schedule_election(struct booth_config *conf_ptr, struct ticket_config *tk,
+                       cmd_reason_t reason)
 {
-	if (local->type != SITE)
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
+	if (conf_ptr->local->type != SITE)
 		return;
 
 	tk->election_reason = reason;

@@ -158,10 +158,11 @@ int do_attr_command(struct command_line *cl, struct booth_config *conf_ptr)
 	char *msg = NULL;
 
 	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+	assert(conf_ptr->local != NULL);
 	assert(cl != NULL);
 
 	if (*cl->site == '\0')
-		site = local;
+		site = conf_ptr->local;
 	else {
 		if (!find_site_by_name(conf_ptr, cl->site, &site, 1)) {
 			log_error("Site \"%s\" not configured.", cl->site);
@@ -170,7 +171,7 @@ int do_attr_command(struct command_line *cl, struct booth_config *conf_ptr)
 	}
 
 	if (site->type == ARBITRATOR) {
-		if (site == local) {
+		if (site == conf_ptr->local) {
 			log_error("We're just an arbitrator, no attributes here.");
 		} else {
 			log_error("%s is just an arbitrator, no attributes there.",

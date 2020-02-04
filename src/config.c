@@ -37,6 +37,14 @@
 
 static int ticket_size = 0;
 
+static const struct booth_site _no_leader = {
+	.addr_string = "none",
+	.site_id = NO_ONE,
+	.index = -1,
+};
+struct booth_site *const no_leader = (struct booth_site*) &_no_leader;
+
+
 static int ticket_realloc(struct booth_config *conf_ptr)
 {
 	const int added = 5;
@@ -958,8 +966,10 @@ static int get_other_site(struct booth_config *conf_ptr,
 	if (conf_ptr == NULL)
 		return 0;
 
+	assert(conf_ptr->local != NULL);
+
 	FOREACH_NODE(conf_ptr, i, n) {
-		if (n != local && n->type == SITE) {
+		if (n != conf_ptr->local && n->type == SITE) {
 			if (!*node) {
 				*node = n;
 			} else {

@@ -64,18 +64,25 @@ typedef struct booth_transport booth_transport_table_t[TRANSPORT_ENTRIES];
  * Attempts to pick identity of self from config-tracked enumeration of sites
  *
  * @param[inout] conf_ptr config object to refer to
- * @param[out] mep when self-discovery successful, site pointer is stored here
  * @param[in] fuzzy_allowed whether it's OK to approximate the match
  *
  * @return 0 on success or negative value (-1 or -errno) on error
  */
-int find_myself(struct booth_config *conf_ptr, struct booth_site **mep,
-                int fuzzy_allowed);
+int find_myself(struct booth_config *conf_ptr, int fuzzy_allowed);
 
 int read_client(struct client *req_cl);
 int check_boothc_header(struct boothc_header *data, int len_incl_data);
 
-int setup_tcp_listener(int test_only);
+/**
+ * @internal
+ * Setup the TCP listener/server
+ *
+ * @param[in] local thix verysite
+ * @param[in] test_only whether to just check if binding is clear
+ *
+ * @return 0 on success or -1 or errno on error
+ */
+int setup_tcp_listener(struct booth_site *local, int test_only);
 
 /**
  * @internal

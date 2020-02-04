@@ -324,9 +324,6 @@ struct booth_site {
 	uint32_t last_usecs;
 } __attribute__((packed));
 
-
-
-extern struct booth_site *local;
 extern struct booth_site *const no_leader;
 
 /** @} */

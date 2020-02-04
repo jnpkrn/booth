@@ -328,6 +328,8 @@ struct booth_config {
     int poll_timeout;
     char path_to_self[BOOTH_PATH_LEN];
 
+    struct booth_site *local;
+
     const booth_transport_table_t *transport;
     const struct ticket_handler *ticket_handler;
 };

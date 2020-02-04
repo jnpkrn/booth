@@ -48,10 +48,6 @@
 #define SOCKET_BUFFER_SIZE	160000
 #define FRAME_SIZE_MAX		10000
 
-
-
-struct booth_site *local = NULL;
-
 /* function to be called when handling booth-group-internal messages;
  * it's expected to return 0 to indicate success, negative integer
  * to indicate silent (or possibly already complained about) error,
@@ -140,11 +136,11 @@ static int find_address(struct booth_config *conf_ptr,
 
 
 static int _find_myself(struct booth_config *conf_ptr, int family,
-                        struct booth_site **mep, int fuzzy_allowed)
+                        int fuzzy_allowed)
 {
 	int fd;
 	struct sockaddr_nl nladdr;
-	struct booth_site *me;
+	struct booth_site *me = NULL;
 	unsigned char ipaddr[BOOTH_IPADDR_LEN];
 	static char rcvbuf[NETLINK_BUFSIZE];
 	struct {
@@ -153,15 +149,12 @@ static int _find_myself(struct booth_config *conf_ptr, int family,
 	} req;
 	int address_bits_matched;
 
+	assert(conf_ptr != NULL);
 
-	if (local)
+	if (conf_ptr->local != NULL)
 		goto found;
 
-
-	me = NULL;
 	address_bits_matched = 0;
-	if (mep)
-		*mep = NULL;
 	fd = socket(AF_NETLINK, SOCK_RAW, NETLINK_ROUTE);
 	if (fd < 0) {
 		log_error("failed to create netlink socket");
@@ -247,7 +240,7 @@ static int _find_myself(struct booth_config *conf_ptr, int family,
 					             ifa->ifa_family, ifa->ifa_prefixlen,
 					             fuzzy_allowed, &me, &address_bits_matched);
 
-					if (me) {
+					if (me != NULL) {
 						log_debug("found myself at %s (%d bits matched)",
 								site_string(me), address_bits_matched);
 					}
@@ -263,7 +256,7 @@ static int _find_myself(struct booth_config *conf_ptr, int family,
 					             ifa->ifa_family, ifa->ifa_prefixlen,
 					             0 /* fuzzy_allowed */, &me, &address_bits_matched);
 
-					if (me) {
+					if (me != NULL) {
 						log_debug("found myself at %s (exact match)",
 								site_string(me));
 					}
@@ -275,24 +268,20 @@ static int _find_myself(struct booth_config *conf_ptr, int family,
 
 	close(fd);
 
-	if (!me)
+	if (me == NULL)
 		return 0;
 
 	me->local = 1;
-	local = me;
+	conf_ptr->local = me;
 found:
-	if (mep)
-		*mep = local;
 	return 1;
 }
 
-int find_myself(struct booth_config *conf_ptr, struct booth_site **mep,
-                int fuzzy_allowed)
+int find_myself(struct booth_config *conf_ptr, int fuzzy_allowed)
 {
-	return _find_myself(conf_ptr, AF_INET6, mep, fuzzy_allowed) ||
-		_find_myself(conf_ptr, AF_INET, mep, fuzzy_allowed);
+	return _find_myself(conf_ptr, AF_INET6, fuzzy_allowed)
+	       || _find_myself(conf_ptr, AF_INET, fuzzy_allowed);
 }
-
 
 /** Checks the header fields for validity.
  * cf. init_header().
@@ -526,10 +515,12 @@ static void process_tcp_listener(struct booth_config *conf_ptr, int ci)
 	log_debug("client connection %d fd %d", i, fd);
 }
 
-int setup_tcp_listener(int test_only)
+int setup_tcp_listener(struct booth_site *local, int test_only)
 {
 	int s, rv;
 	int one = 1;
+
+	assert(local != NULL);
 
 	s = socket(local->family, SOCK_STREAM, 0);
 	if (s == -1) {
@@ -574,10 +565,10 @@ static int booth_tcp_init(struct booth_config *conf_ptr,
 
 	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
 
-	if (get_local_id() < 0)
+	if (get_local_id(conf_ptr) < 0)
 		return -1;
 
-	rv = setup_tcp_listener(0);
+	rv = setup_tcp_listener(conf_ptr->local, 0);
 	if (rv < 0)
 		return rv;
 
@@ -768,11 +759,13 @@ static int booth_tcp_exit(void)
 	return 0;
 }
 
-static int setup_udp_server(void)
+static int setup_udp_server(struct booth_site *local)
 {
 	int rv, fd;
 	int one = 1;
 	unsigned int recvbuf_size;
+
+	assert(local != NULL);
 
 	fd = socket(local->family, SOCK_DGRAM, 0);
 	if (fd == -1) {
@@ -858,14 +851,15 @@ static int booth_udp_init(struct booth_config *conf_ptr, void *f)
 	int rv;
 
 	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+	assert(conf_ptr->local != NULL);
 
-	rv = setup_udp_server();
+	rv = setup_udp_server(conf_ptr->local);
 	if (rv < 0)
 		return rv;
 
 	deliver_fn = f;
-	client_add(local->udp_fd, *conf_ptr->transport + UDP, process_recv,
-	           NULL);
+	client_add(conf_ptr->local->udp_fd, *conf_ptr->transport + UDP,
+	           process_recv, NULL);
 
 	return 0;
 }
@@ -875,9 +869,12 @@ static int booth_udp_send(struct booth_config *conf_ptr, struct booth_site *to,
 {
 	int rv;
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	to->sent_cnt++;
-	rv = sendto(local->udp_fd, buf, len, MSG_NOSIGNAL,
-			(struct sockaddr *)&to->sa6, to->saddrlen);
+	rv = sendto(conf_ptr->local->udp_fd, buf, len, MSG_NOSIGNAL,
+	            (struct sockaddr *)&to->sa6, to->saddrlen);
 	if (rv == len) {
 		rv = 0;
 	} else if (rv < 0) {
@@ -913,6 +910,9 @@ static int booth_udp_broadcast_auth(struct booth_config *conf_ptr,
 	int i, rv, rvs;
 	struct booth_site *site;
 
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
 	if (conf_ptr == NULL || !conf_ptr->site_count)
 		return -1;
 
@@ -922,7 +922,7 @@ static int booth_udp_broadcast_auth(struct booth_config *conf_ptr,
 
 	rvs = 0;
 	FOREACH_NODE(conf_ptr, i, site) {
-		if (site != local) {
+		if (site != conf_ptr->local) {
 			rv = booth_udp_send(conf_ptr, site, buf, len);
 			if (!rvs)
 				rvs = rv;

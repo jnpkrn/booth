@@ -34,7 +34,10 @@ int manual_selection(struct booth_config *conf_ptr,
                      struct ticket_config *tk, struct booth_site *preference,
                      int update_term, cmd_reason_t reason)
 {
-	if (local->type != SITE)
+	assert(conf_ptr != NULL);
+	assert(conf_ptr->local != NULL);
+
+	if (conf_ptr->local->type != SITE)
 		return 0;
 
 	tk_log_debug("starting manual selection (caused by %s %s)",
@@ -42,7 +45,7 @@ int manual_selection(struct booth_config *conf_ptr,
 				reason == OR_AGAIN ? state_to_string(tk->election_reason) : "" );
 
 	// Manual selection is done without any delay, the leader is assigned
-	set_leader(tk, local);
+	set_leader(tk, conf_ptr->local);
 	set_state(tk, ST_LEADER);
 
 	// Manual tickets never expire, we don't specify expiration time
