@@ -513,8 +513,9 @@ err_out:
 extern int poll_timeout;
 
 int read_config(struct booth_config **conf_pptr,
-                const booth_transport_table_t *transport, const char *path,
-                int type)
+                const booth_transport_table_t *transport,
+                const struct ticket_handler *ticket_handler,
+                const char *path, int type)
 {
 	char line[1024];
 	FILE *fp;
@@ -549,6 +550,7 @@ int read_config(struct booth_config **conf_pptr,
 			+ TICKET_ALLOC * sizeof(struct ticket_config));
 	ticket_size = TICKET_ALLOC;
 	(*conf_pptr)->transport = transport;
+	(*conf_pptr)->ticket_handler = ticket_handler;
 
 	(*conf_pptr)->proto = UDP;
 	(*conf_pptr)->port = BOOTH_DEFAULT_PORT;

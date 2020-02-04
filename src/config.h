@@ -326,6 +326,7 @@ struct booth_config {
     struct ticket_config *ticket;
 
     const booth_transport_table_t *transport;
+    const struct ticket_handler *ticket_handler;
 };
 
 #define is_auth_req(b_) ((b_)->authkey[0] != '\0')
@@ -342,8 +343,9 @@ struct booth_config {
  * @return 0 or negative value (-1 or -errno) on error
  */
 int read_config(struct booth_config **conf_pptr,
-                const booth_transport_table_t *transport, const char *path,
-                int type);
+                const booth_transport_table_t *transport,
+                const struct ticket_handler *ticket_handler,
+                const char *path, int type);
 
 /**
  * @internal

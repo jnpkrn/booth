@@ -167,9 +167,9 @@ int ticket_write(struct booth_config *conf_ptr, struct ticket_config *tk)
 				"delaying ticket grant to CIB");
 			return 1;
 		}
-		pcmk_handler.grant_ticket(tk);
+		conf_ptr->ticket_handler->grant_ticket(tk);
 	} else {
-		pcmk_handler.revoke_ticket(tk);
+		conf_ptr->ticket_handler->revoke_ticket(tk);
 	}
 	tk->update_cib = 0;
 
@@ -673,7 +673,7 @@ int setup_ticket(struct booth_config *conf_ptr)
 		reset_ticket(tk);
 
 		if (local->type == SITE) {
-			if (!pcmk_handler.load_ticket(conf_ptr, tk)) {
+			if (!conf_ptr->ticket_handler->load_ticket(conf_ptr, tk)) {
 				update_ticket_state(conf_ptr, tk, NULL);
 			}
 			tk->update_cib = 1;

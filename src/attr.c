@@ -290,22 +290,31 @@ int store_geo_attr(struct ticket_config *tk, const char *name,
 	return 0;
 }
 
-static cmd_result_t attr_set(struct ticket_config *tk, struct boothc_attr_msg *msg)
+static cmd_result_t attr_set(struct booth_config *conf_ptr,
+                             struct ticket_config *tk,
+                             struct boothc_attr_msg *msg)
 {
 	int rc;
+
+	assert(conf_ptr != NULL);
 
 	rc = store_geo_attr(tk, msg->attr.name, msg->attr.val, 0);
 	if (rc) {
 		return RLT_SYNC_FAIL;
 	}
-	(void)pcmk_handler.set_attr(tk, msg->attr.name, msg->attr.val);
+	(void) conf_ptr->ticket_handler->set_attr(tk, msg->attr.name,
+	                                          msg->attr.val);
 	return RLT_SUCCESS;
 }
 
-static cmd_result_t attr_del(struct ticket_config *tk, struct boothc_attr_msg *msg)
+static cmd_result_t attr_del(struct booth_config *conf_ptr,
+                             struct ticket_config *tk,
+                             struct boothc_attr_msg *msg)
 {
 	gboolean rv;
 	gpointer orig_key, value;
+
+	assert(conf_ptr != NULL);
 
 	/*
 	 * lookup attr
@@ -322,7 +331,7 @@ static cmd_result_t attr_del(struct ticket_config *tk, struct boothc_attr_msg *m
 
 	rv = g_hash_table_remove(tk->attr, msg->attr.name);
 
-	(void)pcmk_handler.del_attr(tk, msg->attr.name);
+	(void) conf_ptr->ticket_handler->del_attr(tk, msg->attr.name);
 
 	return gbool2rlt(rv);
 }
@@ -438,10 +447,10 @@ int process_attr_request(struct booth_config *conf_ptr,
 			goto reply_now;
 		return 1;
 	case ATTR_SET:
-		rv = attr_set(tk, msg);
+		rv = attr_set(conf_ptr, tk, msg);
 		break;
 	case ATTR_DEL:
-		rv = attr_del(tk, msg);
+		rv = attr_del(conf_ptr, tk, msg);
 		break;
 	}
 

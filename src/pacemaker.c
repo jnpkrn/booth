@@ -538,8 +538,7 @@ static int pcmk_load_ticket(struct booth_config *conf_ptr,
 	return rv | pipe_rv;
 }
 
-
-struct ticket_handler pcmk_handler = {
+struct ticket_handler booth__pcmk_ticket_handler = {
 	.grant_ticket   = pcmk_grant_ticket,
 	.revoke_ticket  = pcmk_revoke_ticket,
 	.load_ticket    = pcmk_load_ticket,

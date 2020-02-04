@@ -75,6 +75,7 @@
 #define CLIENT_NALLOC		32
 
 extern const booth_transport_table_t booth__transport;
+extern struct ticket_handler booth__pcmk_ticket_handler;
 
 static int daemonize = 1;
 int enable_stderr = 0;
@@ -364,7 +365,8 @@ static int setup_config(struct booth_config **conf_pptr, int type)
 
 	assert(conf_pptr != NULL);
 
-	rv = read_config(conf_pptr, &booth__transport, cl.configfile, type);
+	rv = read_config(conf_pptr, &booth__transport,
+	                 &booth__pcmk_ticket_handler, cl.configfile, type);
 	if (rv < 0)
 		goto out;
 
