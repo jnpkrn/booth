@@ -325,6 +325,8 @@ struct booth_config {
     int ticket_allocated;
     struct ticket_config *ticket;
 
+    char path_to_self[BOOTH_PATH_LEN];
+
     const booth_transport_table_t *transport;
     const struct ticket_handler *ticket_handler;
 };

@@ -47,7 +47,7 @@ static int set_booth_env(struct booth_config *conf_ptr,
 	rv = setenv("BOOTH_TICKET", tk->name, 1) ||
 		setenv("BOOTH_LOCAL", local->addr_string, 1) ||
 		setenv("BOOTH_CONF_NAME", conf_ptr->name, 1) ||
-		setenv("BOOTH_CONF_PATH", cl.configfile, 1) ||
+		setenv("BOOTH_CONF_PATH", conf_ptr->path_to_self, 1) ||
 		setenv("BOOTH_TICKET_EXPIRES", expires, 1);
 
 	if (rv) {

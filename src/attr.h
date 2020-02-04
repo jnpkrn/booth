@@ -30,18 +30,28 @@
 #include <glib.h>
 
 void print_geostore_usage(void);
-int test_attr_reply(cmd_result_t reply_code, cmd_request_t cmd);
+
+/**
+ * @internal
+ * Late handling of the response towards the client
+ *
+ * @param[in] cl parsed command line form
+ * @param[in] reply_code what the inner handling returns
+ *
+ * @return 0 on success, -1 on failure, 1 when "cannot serve"
+ */
+int test_attr_reply(struct command_line *cl, cmd_result_t reply_code);
 
 /**
  * @internal
  * Carry out a geo-atribute related command
  *
+ * @param[in] cl parsed command line structure
  * @param[inout] conf_ptr config object to refer to
- * @param[in] cmd what to perform
  *
  * @return 0 or negative value (-1 or -errno) on error
  */
-int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd);
+int do_attr_command(struct command_line *cl, struct booth_config *conf_ptr);
 
 /**
  * @internal

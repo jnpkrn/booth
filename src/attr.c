@@ -62,12 +62,12 @@ void print_geostore_usage(void)
  * ticket, attr name, attr value
  */
 
-int test_attr_reply(cmd_result_t reply_code, cmd_request_t cmd)
+int test_attr_reply(struct command_line *cl, cmd_result_t reply_code)
 {
 	int rv = 0;
 	const char *op_str = "";
 
-	switch (cmd) {
+	switch (cl->type) {
 	case ATTR_SET:	op_str = "set";		break;
 	case ATTR_GET:	op_str = "get";		break;
 	case ATTR_LIST:	op_str = "list";	break;
@@ -86,7 +86,7 @@ int test_attr_reply(cmd_result_t reply_code, cmd_request_t cmd)
 
 	case RLT_SYNC_SUCC:
 	case RLT_SUCCESS:
-		if (cmd == ATTR_SET)
+		if (cl->type == ATTR_SET)
 			log_info("%s succeeded!", op_str);
 		rv = 0;
 		break;
@@ -98,13 +98,13 @@ int test_attr_reply(cmd_result_t reply_code, cmd_request_t cmd)
 
 	case RLT_INVALID_ARG:
 		log_error("ticket \"%s\" does not exist",
-				cl.attr_msg.attr.tkt_id);
+		          cl->attr_msg.attr.tkt_id);
 		rv = 1;
 		break;
 
 	case RLT_NO_SUCH_ATTR:
 		log_error("attribute \"%s\" not set",
-				cl.attr_msg.attr.name);
+		          cl->attr_msg.attr.name);
 		rv = 1;
 		break;
 
@@ -149,7 +149,7 @@ static int read_server_reply(
 	return rv;
 }
 
-int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
+int do_attr_command(struct command_line *cl, struct booth_config *conf_ptr)
 {
 	struct booth_site *site = NULL;
 	struct boothc_header *header;
@@ -158,12 +158,13 @@ int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
 	char *msg = NULL;
 
 	assert(conf_ptr != NULL && conf_ptr->transport != NULL);
+	assert(cl != NULL);
 
-	if (!*cl.site)
+	if (*cl->site == '\0')
 		site = local;
 	else {
-		if (!find_site_by_name(conf_ptr, cl.site, &site, 1)) {
-			log_error("Site \"%s\" not configured.", cl.site);
+		if (!find_site_by_name(conf_ptr, cl->site, &site, 1)) {
+			log_error("Site \"%s\" not configured.", cl->site);
 			goto out_close;
 		}
 	}
@@ -172,21 +173,22 @@ int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
 		if (site == local) {
 			log_error("We're just an arbitrator, no attributes here.");
 		} else {
-			log_error("%s is just an arbitrator, no attributes there.", cl.site);
+			log_error("%s is just an arbitrator, no attributes there.",
+			          cl->site);
 		}
 		goto out_close;
 	}
 
 	tpt = *conf_ptr->transport + TCP;
 
-	init_header(conf_ptr, &cl.attr_msg.header, cmd, 0, cl.options, 0, 0,
-	            sizeof(cl.attr_msg));
+	init_header(conf_ptr, &cl->attr_msg.header, cl->type, 0, cl->options,
+	            0, 0, sizeof(cl->attr_msg));
 
 	rv = tpt->open(site);
 	if (rv < 0)
 		goto out_close;
 
-	rv = tpt->send(conf_ptr, site, &cl.attr_msg, sendmsglen(&cl.attr_msg));
+	rv = tpt->send(conf_ptr, site, &cl->attr_msg, sendmsglen(&cl->attr_msg));
 	if (rv < 0)
 		goto out_close;
 
@@ -201,7 +203,7 @@ int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
 	header = (struct boothc_header *)msg;
 	if (rv < 0) {
 		if (rv == -1)
-			(void)test_attr_reply(ntohl(header->result), cmd);
+			(void) test_attr_reply(cl, ntohl(header->result));
 		goto out_close;
 	}
 	len = ntohl(header->length);
@@ -217,7 +219,7 @@ int do_attr_command(struct booth_config *conf_ptr, cmd_request_t cmd)
 		rv = -1;
 		goto out_close;
 	}
-	rv = test_attr_reply(ntohl(header->result), cmd);
+	rv = test_attr_reply(cl, ntohl(header->result));
 
 out_close:
 	if (tpt && site)

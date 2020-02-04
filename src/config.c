@@ -877,6 +877,10 @@ no_value:
 		goto out;
 	}
 
+	safe_copy((*conf_pptr)->path_to_self, path,
+	          sizeof((*conf_pptr)->path_to_self),
+	          "path to config file itself");
+
 	poll_timeout = min(POLL_TIMEOUT, min_timeout/10);
 	if (!poll_timeout)
 		poll_timeout = POLL_TIMEOUT;

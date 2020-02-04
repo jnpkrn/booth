@@ -361,7 +361,20 @@ int client_add(int fd, const struct booth_transport *tpt,
                void (*deadfn)(int ci));
 
 int find_client_by_fd(int fd);
-void safe_copy(char *dest, char *value, size_t buflen, const char *description);
+
+/**
+ * @internal
+ * Like strncpy, but with explicit protection and better diagnostics
+ *
+ * @param[out] dest where to copy the string to
+ * @param[in] value where to copy the string from
+ * @param[in] buflen nmaximum size of #dest (incl. trailing '\0', or sizeof)
+ * @param[in] description how to refer to the target as
+ *
+ * @return number of clients tracked (incl. this one)
+ */
+void safe_copy(char *dest, const char *value, size_t buflen,
+               const char *description);
 
 /**
  * @internal
@@ -395,8 +408,6 @@ struct command_line {
 	struct boothc_ticket_msg msg;
 	struct boothc_attr_msg attr_msg;
 };
-extern struct command_line cl;
-
 
 
 /* http://gcc.gnu.org/onlinedocs/gcc/Typeof.html */
